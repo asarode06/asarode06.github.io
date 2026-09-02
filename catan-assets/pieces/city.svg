@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48" width="64" height="48" role="img" aria-label="City piece">
+<title>City piece</title>
+
+<path d="M5,43 L5,24 L26,24 L26,14 L43,3 L59,14 L59,43 Z" fill="#C0462B" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M26,24 L26,14 L43,3 L59,14" fill="none" stroke="#2E2823" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="26" y1="24" x2="5" y2="24" stroke="#2E2823" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

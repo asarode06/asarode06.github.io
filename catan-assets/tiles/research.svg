@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 231" width="200" height="231" role="img" aria-label="Research tile">
+<title>Research tile</title>
+<path d="M100.4,0.8 Q151.3,28.3 201.9,56.4 Q204.1,116.8 200.9,175.5 Q150.5,201.2 102.5,229.1 Q51.7,198.8 0.9,173.9 Q1.1,118.6 0.0,60.5 Q49.8,32.7 100.4,0.8 Z" fill="#E0B152" fill-opacity="0.55" stroke="#2E2823" stroke-width="3" stroke-linejoin="round"/>
+<path d="M99.5,0.8 Q148.5,29.9 199.0,57.4 Q197.4,115.0 198.2,172.6 Q147.1,203.3 98.7,230.5 Q51.2,203.7 0.4,175.0 Q-2.2,115.8 -1.6,59.6 Q47.0,30.9 99.5,0.8 Z" fill="none" stroke="#2E2823" stroke-width="1.4" stroke-linejoin="round" opacity="0.45"/>
+<g fill="none" stroke="#2E2823" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+<polyline points="25,105 38,76 51,134 64,60 77,142 90,84 103,126 116,66 129,137 142,94 155,119 168,104"/>
+<line x1="25" y1="157" x2="175" y2="157"/>
+<line x1="55" y1="157" x2="55" y2="188"/>
+<line x1="55" y1="172" x2="45" y2="164"/>
+<line x1="55" y1="172" x2="65" y2="164"/>
+<line x1="100" y1="157" x2="100" y2="192"/>
+<line x1="100" y1="175" x2="90" y2="167"/>
+<line x1="100" y1="175" x2="110" y2="167"/>
+<line x1="145" y1="157" x2="145" y2="188"/>
+<line x1="145" y1="172" x2="135" y2="164"/>
+<line x1="145" y1="172" x2="155" y2="164"/>
+</g>
+</svg>

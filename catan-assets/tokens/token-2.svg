@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" width="72" height="72" role="img" aria-label="Number token 2">
+<title>Number token 2</title>
+<circle cx="36" cy="36" r="30" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6"/>
+<circle cx="36" cy="36" r="25" fill="none" stroke="#2E2823" stroke-width="1.2" opacity="0.4"/>
+<text x="36" y="38" text-anchor="middle" dominant-baseline="central" font-family="Georgia, 'Times New Roman', serif" font-size="27" fill="#2E2823">2</text>
+<circle cx="36.0" cy="55" r="1.8" fill="#2E2823"/>
+
+</svg>
