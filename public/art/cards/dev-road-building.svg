@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 130" width="90" height="130" role="img" aria-label="Road Building development card">
+<title>Road Building development card</title>
+<rect x="4" y="4" width="82" height="122" rx="9" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6"/>
+<rect x="11" y="11" width="68" height="108" rx="6" fill="#8E7CB0" fill-opacity="0.35" stroke="#2E2823" stroke-width="1.2" opacity="0.7"/>
+<!-- the road you already have, dashed, and the two new pieces laid on top of it -->
+<polyline points="20,66 34,50 48,66 62,50 76,66" fill="none" stroke="#2E2823" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"/>
+<polyline points="20,66 34,50 48,66" fill="none" stroke="#C0462B" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="20" cy="66" r="4" fill="#C0462B"/>
+<circle cx="48" cy="66" r="4" fill="#C0462B"/>
+<text x="66" y="42" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#2E2823">2</text>
+<text x="45" y="104" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="8.5" fill="#2E2823">Road Building</text>
+</svg>

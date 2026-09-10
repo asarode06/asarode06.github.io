@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 231" width="200" height="231" role="img" aria-label="Desert tile">
+<title>Desert tile</title>
+<defs>
+<path id="hex" d="M100 0 200 57.75 200 173.25 100 231 0 173.25 0 57.75Z"/>
+<g id="motif" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11q9-6 18 0"/><path d="M24 25q9-6 18 0"/><path d="M33 7h1"/><path d="M11 21h1"/></g>
+<pattern id="tex" width="44" height="30" patternUnits="userSpaceOnUse">
+<g transform="translate(0 1.3)" stroke="#fff8ea" stroke-opacity=".38"><use href="#motif"/></g>
+<g stroke="#2e2823" stroke-opacity=".18"><use href="#motif"/></g>
+</pattern>
+<radialGradient id="lift" gradientUnits="userSpaceOnUse" cx="100" cy="115.5" r="118">
+<stop offset="0" stop-color="#fff8ea" stop-opacity=".26"/>
+<stop offset=".42" stop-color="#fff8ea" stop-opacity=".12"/>
+<stop offset=".78" stop-color="#fff8ea" stop-opacity=".02"/>
+<stop offset="1" stop-color="#fff8ea" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="edge" gradientUnits="userSpaceOnUse" cx="100" cy="115.5" r="118">
+<stop offset=".52" stop-color="#2e2823" stop-opacity="0"/>
+<stop offset="1" stop-color="#2e2823" stop-opacity=".14"/>
+</radialGradient>
+<g id="crest" fill="none" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M-6 24V-10q0-8 6-8t6 8v34"/>
+<path d="M-6-1h-5q-6 0-6-6v-6"/><path d="M6 5h6q6 0 6-6v-8"/>
+<path d="M-14 24h28" stroke-width="2.2"/>
+</g>
+</defs>
+<use href="#hex" fill="#ded0ab"/>
+<use href="#hex" fill="url(#tex)"/>
+<use href="#hex" fill="url(#lift)"/>
+<use href="#hex" fill="url(#edge)"/>
+<g transform="translate(100 110)">
+<g transform="translate(0 1.5)" stroke="#fff8ea" stroke-opacity=".5"><use href="#crest"/></g>
+<g stroke="#2e2823" stroke-opacity=".58"><use href="#crest"/></g>
+</g>
+<path d="M100 8.3 192.8 61.9 192.8 169.1 100 222.7 7.2 169.1 7.2 61.9Z" fill="none" stroke="#2e2823" stroke-opacity=".3" stroke-width="2.4" stroke-linejoin="round"/>
+</svg>

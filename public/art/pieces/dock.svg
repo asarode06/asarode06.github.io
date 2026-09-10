@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60" width="120" height="60" role="img" aria-label="Dock">
+<title>Dock</title>
+<g fill="none" stroke="#2E2823" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="6" y1="34" x2="3" y2="52"/>
+  <line x1="30" y1="32" x2="28" y2="52"/>
+  <line x1="54" y1="31" x2="54" y2="51"/>
+  <path d="M0,31 L68,28"/>
+  <path d="M0,37 L68,34"/>
+  <path d="M78,31 Q95,24 112,30 Q101,39 84,39 Q77,36 78,31 Z" fill="#F4EDE0"/>
+  <line x1="94" y1="30" x2="94" y2="10"/>
+  <path d="M94,11 L94,28 L110,25 Z" fill="#F4EDE0"/>
+</g>
+</svg>

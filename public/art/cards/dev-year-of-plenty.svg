@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 130" width="90" height="130" role="img" aria-label="Year of Plenty development card">
+<title>Year of Plenty development card</title>
+<rect x="4" y="4" width="82" height="122" rx="9" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6"/>
+<rect x="11" y="11" width="68" height="108" rx="6" fill="#8E7CB0" fill-opacity="0.35" stroke="#2E2823" stroke-width="1.2" opacity="0.7"/>
+<!-- two cards taken off the bank, the back one tilted behind the front one -->
+<g transform="rotate(-13 34 56)">
+  <rect x="20" y="34" width="28" height="42" rx="4" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.4"/>
+  <polygon points="34,44 43,60 25,60" fill="#3F6B3A" fill-opacity="0.55" stroke="#2E2823" stroke-width="1.6" stroke-linejoin="round"/>
+  <line x1="34" y1="60" x2="34" y2="66" stroke="#2E2823" stroke-width="1.6" stroke-linecap="round"/>
+</g>
+<g transform="rotate(11 58 58)">
+  <rect x="44" y="36" width="28" height="42" rx="4" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.4"/>
+  <path d="M58,46 L58,68 M58,52 L52,48 M58,52 L64,48 M58,60 L52,56 M58,60 L64,56" fill="none" stroke="#E0B152" stroke-width="2.4" stroke-linecap="round"/>
+</g>
+<text x="45" y="90" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#2E2823">+2</text>
+<text x="45" y="106" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="8.5" fill="#2E2823">Year of Plenty</text>
+</svg>

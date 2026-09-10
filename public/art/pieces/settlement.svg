@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Settlement piece">
+<title>Settlement piece</title>
+
+<path d="M24,5 L43,19 L43,42 L5,42 L5,19 Z" fill="#C0462B" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M5,19 L24,5 L43,19" fill="none" stroke="#2E2823" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

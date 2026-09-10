@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 130" width="90" height="130" role="img" aria-label="Knight development card">
+<title>Knight development card</title>
+<rect x="4" y="4" width="82" height="122" rx="9" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6"/>
+<rect x="11" y="11" width="68" height="108" rx="6" fill="#8E7CB0" fill-opacity="0.35" stroke="#2E2823" stroke-width="1.2" opacity="0.7"/>
+<!-- lance, behind the helm -->
+<line x1="65" y1="24" x2="34" y2="80" stroke="#2E2823" stroke-width="2.4" stroke-linecap="round"/>
+<polygon points="65,24 61,32 69,29" fill="#2E2823"/>
+<!-- helm: dome, neck guard, visor slit, plume -->
+<path d="M30,58 Q30,38 45,38 Q60,38 60,58 L60,72 Q45,80 30,72 Z" fill="none" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round"/>
+<line x1="32" y1="56" x2="58" y2="56" stroke="#2E2823" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="45" y1="60" x2="45" y2="70" stroke="#2E2823" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M45,38 Q49,26 41,22" fill="none" stroke="#C0462B" stroke-width="3" stroke-linecap="round"/>
+<text x="45" y="104" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="11" fill="#2E2823">Knight</text>
+</svg>

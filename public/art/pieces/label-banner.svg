@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 52" width="180" height="52" role="img" aria-label="Label banner">
+<title>Label banner</title>
+<path d="M6,6 L14,4 L166,3 L176,7 L171,26 L177,45 L166,49 L13,49 L4,46 L9,26 Z"
+      fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M14,4 L10,26 L16,48" fill="none" stroke="#2E2823" stroke-width="1.6" opacity="0.4" stroke-linecap="round"/>
+<path d="M166,3 L171,26 L164,49" fill="none" stroke="#2E2823" stroke-width="1.6" opacity="0.4" stroke-linecap="round"/>
+</svg>
