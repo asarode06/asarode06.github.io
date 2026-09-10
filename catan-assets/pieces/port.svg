@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" width="72" height="72" role="img" aria-label="Port marker">
-<title>Port marker</title>
-
-<path d="M12,46 L60,46 L52,60 L20,60 Z" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round"/>
-<line x1="36" y1="46" x2="36" y2="12" stroke="#2E2823" stroke-width="2.6" stroke-linecap="round"/>
-<path d="M36,15 L56,42 L36,42 Z" fill="#F4EDE0" stroke="#2E2823" stroke-width="2.6" stroke-linejoin="round"/>
-<path d="M8,66 Q20,60 32,66 T56,66" fill="none" stroke="#2E2823" stroke-width="2.2" stroke-linecap="round" opacity="0.6"/>
-</svg>
