@@ -1,0 +1,1496 @@
+:root {
+  --ink: #2e2823;
+  --paper: #f4ede0;
+  --player: #c0462b;
+  --brick: #c4703f;
+  --wheat: #e0b152;
+  --wood: #3f6b3a;
+  --sheep: #9dbe6a;
+  --ore: #78838f;
+  --desert: #d9c79e;
+  --sand: #e4cf9e;
+  --timber: #c08b4f; /* pier planks — the cut-lumber brown, not the forest green of --wood */
+  --ocean: #4f87ac;
+  --ocean-light: #6ba3c7;
+  --ocean-deep: #3d6c8a;
+  --dev: #8e7cb0; /* the purple on card-dev-back.svg — the development deck's accent */
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* the grey flash Chrome/Safari paint on tap */
+}
+
+/* Chrome paints its focus ring the moment you *click* anything focusable — the hex tile buttons
+   and the SVG <g> road nodes both qualify — and on this artwork it lands as a black box stamped
+   over the drawing. Only the pointer case is suppressed: keyboard focus still needs to be
+   visible, and `:focus-visible` (the red tile outline, the road node's grown hit circle, and the
+   browser's own ring on the HUD/modal buttons) is left completely alone. */
+:focus:not(:focus-visible) { outline: none; }
+/* SVG <g> is the stubborn one — Chrome rings it on click even when :focus-visible doesn't match,
+   so it needs the plain :focus case killed outright. Its keyboard affordance isn't an outline
+   anyway; see .node-btn:focus-visible below. */
+.node-btn:focus { outline: none; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden; /* the board pans/zooms a camera instead of the page scrolling */
+  background: var(--paper) url('/art/textures/paper.svg') repeat;
+  color: var(--ink);
+  font-family: 'Caveat', 'Patrick Hand', 'Segoe Print', cursive, system-ui, sans-serif;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==================================================================== camera / world */
+.viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background:
+    radial-gradient(ellipse at 50% 42%, var(--ocean-light) 0%, var(--ocean) 55%, var(--ocean-deep) 100%);
+  /* Dragging to pan reads as a text/element selection drag to the browser otherwise — every
+     tile label, port label, card, etc. underneath the cursor path gets highlighted blue. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.viewport:active { cursor: grabbing; }
+.viewport img, .hud img, .port, .hud-btn { -webkit-user-drag: none; user-drag: none; }
+
+.world {
+  position: absolute;
+  top: 0; left: 0;
+}
+
+.board { position: absolute; }
+
+.tile {
+  position: absolute;
+  width: 140px;
+  height: 161.66px;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: none;
+  display: block;
+}
+.tile img { width: 106%; height: 106%; margin: -3%; display: block; pointer-events: none; }
+.tile.filler { cursor: default; }
+.tile.content { cursor: pointer; }
+.tile.content:hover img, .tile.content:focus-visible img { filter: brightness(1.07); }
+.tile.content:focus-visible { outline: 3px solid var(--player); outline-offset: -3px; }
+.tile.filler.armable { cursor: pointer; filter: drop-shadow(0 0 10px var(--player)); }
+/* Still a legal robber spot — there is just no card left in that resource's deck to take. */
+.tile.filler.armable.depleted { filter: grayscale(.7) brightness(.9); opacity: .55; }
+
+.tile.content.pulse { animation: tile-pulse 1.1s ease-in-out; }
+@keyframes tile-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  35% { filter: drop-shadow(0 0 16px var(--player)) brightness(1.15); }
+}
+
+.tile-label {
+  /* The hex is pointy-top: it's only at full width between 25%-75% of its height (see the
+     clip-path polygon below). Anything wider than that band gets clipped by the hex's own
+     point, so the banner sits just inside it instead of up near the point. */
+  position: absolute;
+  top: 27%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 76%; /* fallback if a label's own width isn't set inline; board.js sizes it per-title */
+  pointer-events: none;
+  z-index: 2;
+}
+.tile-label-bg { width: 100%; display: block; }
+.tile-label-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  padding: 0 4px;
+  text-align: center;
+  line-height: 1.05;
+}
+
+.token {
+  position: absolute;
+  width: 46px; height: 46px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+.robber { position: absolute; width: 34px; transform: translate(-50%, -60%); z-index: 4; pointer-events: none; }
+.robber-ghost { opacity: .4; filter: grayscale(1) brightness(1.4); z-index: 6; transition: left .08s, top .08s; }
+
+/* ==================================================================== road overlay */
+.road-layer { position: absolute; inset: 0; overflow: visible; z-index: 5; pointer-events: none; }
+.road-seg { stroke: var(--player); stroke-width: 9; stroke-linecap: round; fill: none; pointer-events: stroke; }
+.road-seg.ghost { stroke-dasharray: 12 10; opacity: .45; }
+.node-btn { cursor: pointer; pointer-events: auto; }
+.node-btn:hover circle:first-child, .node-btn:focus-visible circle:first-child { r: 13; }
+.node-btn image { pointer-events: none; }
+.node-btn:focus-visible { outline: none; }
+
+/* ==================================================================== coastline */
+/* No z-index here on purpose — .board (also a plain z-index:auto sibling of #world, appended
+   right after this) must paint on top of the sand through normal DOM order. Giving either of
+   them an explicit z-index would start a stacking-context comparison and could hide the tiles
+   behind the sand fill regardless of DOM order. */
+.coastline { position: absolute; overflow: visible; pointer-events: none; }
+.sand-fill { fill: var(--sand); }
+.sand-outline { fill: none; stroke: var(--ink); stroke-width: 3; opacity: .5; stroke-linejoin: round; }
+
+/* ==================================================================== ports */
+.ports-layer { position: absolute; top: 0; left: 0; }
+.port-piers { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+.port-plank { fill: var(--timber); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.port-slat { stroke: var(--ink); stroke-width: 1.3; opacity: .45; }
+.port { position: absolute; text-decoration: none; color: var(--ink); }
+.port-ship {
+  position: absolute;
+  display: block;
+  width: 42px;
+  transform: translate(-50%, -50%);
+}
+.port-ship img { width: 100%; display: block; filter: drop-shadow(1px 2px 0 rgba(46,40,35,.15)); }
+.port-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.port:hover .port-label, .port:focus-visible .port-label { background: #fffaf0; }
+
+/* ==================================================================== bonus cards */
+.bonus-layer { position: absolute; display: flex; flex-direction: column; gap: 28px; width: 210px; transform: translate(0, -50%); }
+.bonus-card {
+  background: var(--paper);
+  border: 2.6px solid var(--ink);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 3px 4px 0 rgba(46,40,35,.18);
+}
+.bonus-card img { width: 100%; display: block; margin-bottom: 6px; }
+.bonus-card h3 { margin: 0 0 4px; font-size: 1.3rem; }
+.bonus-card ul { margin: 0; padding-left: 18px; font-family: system-ui, sans-serif; font-size: .82rem; line-height: 1.4; }
+.bonus-card p { margin: 0 0 4px; font-family: system-ui, sans-serif; font-size: .82rem; line-height: 1.4; }
+
+/* A locked award (Largest Army) hasn't been earned yet, so its slot holds a hollow outline with
+   the award's name in it. Both live in the slot at once and the grid overlaps them, so winning is
+   a cross-fade in place rather than a reflow of the column. */
+.bonus-slot { display: grid; }
+.bonus-slot > * { grid-area: 1 / 1; transition: opacity .5s ease, transform .5s ease; }
+.bonus-slot.locked .bonus-card { opacity: 0; transform: scale(.94); pointer-events: none; }
+.bonus-ghost {
+  display: grid; place-items: center; min-height: 118px;
+  border: 2.6px dashed var(--ink); border-radius: 10px;
+  font-size: 1.15rem; text-align: center; opacity: .42;
+}
+.bonus-slot.won .bonus-card { opacity: 1; transform: none; pointer-events: auto; }
+.bonus-slot.won .bonus-ghost { opacity: 0; transform: scale(1.04); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bonus-slot > * { transition: none; }
+}
+
+/* ==================================================================== dev card deck */
+/* The pile sits at a fixed 140x202 (the art's own aspect), and the top card is centred on it and
+   absolutely positioned, so turning it over can also *grow* it — width/height animate alongside
+   the flip and the card stays put instead of shoving the caption around. That growth is what
+   makes room for the text: the card's rules text set at reading size, next to its art, does not
+   fit on a 140px face.
+
+   Below the deck sits the pile of cards already played — see the .dev-played rules further down.
+   The layer is wider than the deck so that fan has somewhere to go. */
+.dev-layer { position: absolute; width: 140px; }
+.dev-deck {
+  position: relative; z-index: 1;
+  display: block;
+  width: 140px; height: 202px;
+  perspective: 900px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+/* Two paper edges behind the top card. Purely decorative — they are what say "deck". */
+.dev-pile { position: absolute; inset: 0; }
+/* Inset to where the card art's own drawn rectangle sits inside its SVG margin, so the pile's
+   edges line up with the top card's edges instead of ghosting a second border through it. */
+.dev-pile i {
+  position: absolute; inset: 6px;
+  background: var(--paper);
+  border: 3.4px solid var(--ink);
+  border-radius: 14px;
+  transition: transform .45s ease;
+}
+.dev-pile i:nth-child(1) { transform: translate(10px, 10px); }
+.dev-pile i:nth-child(2) { transform: translate(5px, 5px); }
+
+.dev-card {
+  position: absolute; top: 50%; left: 50%;
+  width: 140px; height: 202px;
+  transform-style: preserve-3d;
+  transform: translate(-50%, -50%) rotateY(0deg);
+  transition: transform .55s cubic-bezier(.2, .75, .3, 1), width .55s cubic-bezier(.2, .75, .3, 1),
+              height .55s cubic-bezier(.2, .75, .3, 1);
+}
+.dev-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.dev-front { transform: rotateY(0deg); }
+/* `contain`, not a plain stretch: the face-down art is a tall 140x202 card and the face it turns
+   into is a wide 330x250 one, so the box changes aspect over the flip. Letterboxing it keeps the
+   drawn card square-on through the half of the turn where it's still facing the reader. */
+.dev-front img { width: 100%; height: 100%; display: block; object-fit: contain; }
+/* Lift the top card off the pile on hover — the deck's only affordance now that the old "draw"
+   chip (which sat on top of the art and cropped the word underneath it) is gone. */
+.dev-deck:hover .dev-card, .dev-deck:focus-visible .dev-card { transform: translate(-50%, -54%) rotateY(0deg); }
+.dev-deck:hover .dev-pile i:nth-child(1) { transform: translate(13px, 13px); }
+.dev-deck.flipped:hover .dev-card, .dev-deck.flipped:focus-visible .dev-card { transform: translate(-50%, -50%) rotateY(180deg); }
+
+/* The drawn card grows from the pile's centre, so it reaches down across this line — the deck
+   is stacked above the caption explicitly rather than relying on paint order. */
+.dev-caption {
+  position: relative; z-index: 0;
+  margin: 12px 0 0; text-align: center; font-size: 1rem; opacity: .7; line-height: 1.2;
+}
+
+/* A spent deck: nothing left to draw, so the pile stops inviting a click. */
+.dev-deck.spent { cursor: default; opacity: .5; }
+.dev-deck.spent .dev-card, .dev-deck.spent:hover .dev-card { transform: translate(-50%, -50%) rotateY(0deg); }
+
+/* ---- the face-up card. Same paper/border/band vocabulary as the shared panel chrome, at the
+   size of a card rather than a modal, so it belongs to the same family without pretending to be
+   one of the three detail surfaces. Art on the left, the card's name and its rules text on the
+   right — the layout of a real development card, turned on its side to fit the board. */
+.dev-deck.flipped .dev-card { width: 330px; height: 250px; transform: translate(-50%, -50%) rotateY(180deg); }
+.dev-back, .dev-open-face {
+  --accent: var(--dev);
+  display: flex; align-items: stretch;
+  text-align: left;
+  border-width: 2.6px; border-radius: 9px;
+  overflow: hidden;
+  /* A card on the board, not a modal over a dimmed one — the shared panel's big ambient shadow
+     would read as a hole in the sand here, so it keeps only the hand-drawn hard offset. */
+  box-shadow: 3px 4px 0 rgba(46, 40, 35, .2);
+}
+.dev-back { transform: rotateY(180deg); }
+.dev-art {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 108px; padding: 8px 6px;
+  border-right: 2.2px solid var(--ink);
+  background: color-mix(in srgb, var(--accent) var(--panel-tint), var(--paper));
+}
+.dev-art img { width: 100%; height: auto; display: block; }
+.dev-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.dev-head {
+  display: block; flex: 0 0 auto;
+  padding: 8px 12px 7px;
+  border-bottom: 2.2px solid var(--ink);
+  background: color-mix(in srgb, var(--accent) var(--panel-tint), var(--paper));
+}
+/* The line a real Catan victory-point card prints across the top — only Library has one. */
+.dev-banner {
+  display: block; margin-top: 3px;
+  font-family: var(--panel-title-font); font-weight: 700;
+  font-size: 1rem; color: var(--player);
+}
+.dev-eyebrow {
+  display: inline-block; margin-bottom: 2px;
+  background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px;
+  padding: 0 7px;
+  font-family: var(--panel-prose-font);
+  font-size: .58rem; line-height: 1.7; letter-spacing: .06em; text-transform: uppercase;
+}
+.dev-type {
+  display: block;
+  font-family: var(--panel-title-font); font-weight: 700;
+  font-size: 1.5rem; line-height: 1.1;
+}
+.dev-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: 10px 12px;
+  font-family: var(--panel-prose-font); font-size: .82rem; line-height: 1.5;
+}
+.dev-body p { margin: 0 0 8px; }
+.dev-body > :last-child { margin-bottom: 0; }
+.dev-foot {
+  flex: 0 0 auto;
+  padding: 5px 12px 7px;
+  border-top: 1.5px dashed rgba(46, 40, 35, .4);
+  font-family: var(--panel-prose-font); font-size: .62rem;
+  letter-spacing: .05em; text-transform: uppercase; opacity: .6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dev-card, .dev-pile i { transition: none; }
+}
+
+/* ---- the pile of cards already played.
+   Deliberately the resource hand's own idiom (.hand-card, further down): cards of one type
+   overlap into a stack, different types sit apart, hover lifts the one you're pointing at and
+   floats its name. That's what keeps eleven knights and a couple of Libraries compact enough to
+   live on the board rather than sprawling across it. */
+/* Wider than the 140px deck above it and pulled back by half the difference, so the fan stays
+   centred on the pile. Wide enough that a full 14-knight stack lands on one row rather than
+   wrapping through the middle of itself. */
+.dev-played {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+  width: 280px; margin: 18px 0 0 -70px;
+  row-gap: 10px;
+}
+.dev-played-card {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  position: relative; margin-left: 7px;
+  transition: transform .2s ease, filter .2s ease;
+}
+.dev-played-card:first-child { margin-left: 0; }
+.dev-played-card.same-type { margin-left: -42px; }
+.dev-played-card img {
+  width: 56px; display: block;
+  filter: drop-shadow(2px 3px 0 rgba(46, 40, 35, .22));
+}
+.dev-played-card:hover, .dev-played-card:focus-visible { transform: translateY(-12px); z-index: 5; }
+.dev-played-card.dealt { animation: hand-deal 1.4s ease-out; }
+/* Borrows .hand-tip wholesale (defined with the resource hand below) — same floating name label,
+   so a stack of knights can be told apart without opening one. */
+.dev-played-card:hover .hand-tip,
+.dev-played-card:focus-visible .hand-tip { opacity: 1; transform: translate(-50%, 0); }
+.dev-played-card.is-open .hand-tip { display: none; }
+
+/* Clicking a played card grows it back to readable size, in place. It isn't a modal — it's a card
+   on the board that got bigger — so it sits above its neighbours and closes on the next click. */
+.dev-played-card.is-open { z-index: 30; }
+.dev-open-face {
+  position: absolute; left: 50%; top: 50%;
+  width: 330px; height: 250px;
+  transform: translate(-50%, -50%);
+  cursor: default;
+  animation: dev-open .28s cubic-bezier(.2, .75, .3, 1);
+}
+@keyframes dev-open {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.25); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dev-played-card, .dev-open-face { transition: none; animation: none; }
+}
+
+/* ==================================================================== free roads (Road Building) */
+/* Sits in the same board-local coordinate space as the career road overlay, one layer under it —
+   a road you placed should never paint over the timeline. */
+/* The layer itself never takes a click — it covers the whole board, and an armed road-building
+   turn must not stop a hex underneath it from being clicked. Only the ghost edges opt back in. */
+.build-layer { position: absolute; inset: 0; overflow: visible; z-index: 4; pointer-events: none; }
+.built-road { stroke: var(--player); stroke-width: 9; stroke-linecap: round; fill: none; }
+.built-road.fresh { animation: road-drop .4s cubic-bezier(.2, .75, .3, 1); }
+@keyframes road-drop {
+  from { stroke-width: 2; opacity: .3; }
+  to { stroke-width: 9; opacity: 1; }
+}
+.ghost-road { cursor: pointer; pointer-events: auto; }
+.ghost-road-line {
+  stroke: var(--player); stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 9 8; opacity: .38;
+  transition: opacity .12s ease, stroke-width .12s ease;
+}
+.ghost-road-hit { stroke: transparent; }
+.ghost-road:hover .ghost-road-line { opacity: 1; stroke-width: 9; stroke-dasharray: none; }
+
+/* ==================================================================== resource hand */
+/* Five decks of content cards sitting under the board. Each card turns over into the .rc-*
+   panel further down; robbing a plain tile deals another one in. See src/cards.js. */
+.hand-layer { position: absolute; transform: translate(-50%, 0); }
+.hand-caption {
+  margin: 0 0 6px; text-align: center; font-size: 1rem; opacity: .7;
+  white-space: nowrap;
+}
+.hand { display: flex; justify-content: center; }
+.hand-card {
+  background: none; border: 0; cursor: pointer; padding: 0;
+  margin-left: 6px;
+  position: relative;
+  transition: transform .2s ease, margin .2s ease, filter .2s ease;
+}
+.hand-card:first-child { margin-left: 0; }
+/* Cards of the same resource are a stack, so they overlap; different resources sit apart.
+   Fanning the whole hand out on hover is what the old design did to *reveal* text — the text
+   is on the card now, so hover only has to lift the one card being pointed at. */
+.hand-card.same-resource { margin-left: -30px; }
+.hand-card img {
+  height: 108px; display: block;
+  filter: drop-shadow(2px 3px 0 rgba(46,40,35,.22));
+}
+.hand-card:hover, .hand-card:focus-visible { transform: translateY(-14px); z-index: 5; }
+.hand-card:hover img, .hand-card:focus-visible img { filter: drop-shadow(3px 5px 0 rgba(46,40,35,.28)); }
+/* The card whose panel is currently open has "left the hand" — leave its gap empty. */
+.hand-card.is-lifted { visibility: hidden; }
+
+/* The card's title, floated above it on hover — one line, never wrapped, never clipped by a
+   neighbouring card. */
+.hand-tip {
+  position: absolute; left: 50%; bottom: calc(100% + 12px); transform: translate(-50%, 4px);
+  background: var(--ink); color: var(--paper);
+  border-radius: 5px; padding: 4px 10px;
+  font-size: .95rem; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity .16s ease, transform .16s ease;
+}
+.hand-tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--ink);
+}
+.hand-card:hover .hand-tip, .hand-card:focus-visible .hand-tip { opacity: 1; transform: translate(-50%, 0); }
+
+/* A card just taken off a robbed tile: it drops into the hand and glows for a beat, so a hand
+   of a dozen cards still makes it obvious which one is new. */
+.hand-card.dealt { animation: hand-deal 1.4s ease-out; }
+@keyframes hand-deal {
+  0% { transform: translateY(-90px) rotate(-14deg); opacity: 0; }
+  35% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  35%, 85% { filter: drop-shadow(0 0 12px var(--player)); }
+  100% { filter: none; }
+}
+
+/* ==================================================================== shared panel chrome */
+/* One look for every detail surface on the site. Three of them exist and they arrive by three
+   different animations — the tile <dialog> rises off its hex, a resource card flips over and
+   opens out, an Experience card grows in place out of the road — but what *lands* is the same
+   object every time: same paper, same border and shadow, same accent-tinted header band with an
+   icon, an eyebrow, a title and a subtitle, same prose column, same footer strip.
+
+   Everything below is shared. A surface's own section further down owns only its geometry and
+   its animation; if you find yourself restating a colour, a border or a type size there, it
+   belongs here instead. `--accent` is set per surface (tile resource, card resource, player red)
+   and is the only thing that visibly differs between them.
+
+   Sizes are multiplied by `--type-scale` so the same rules can render a full-screen modal and a
+   collapsed Experience teaser a third the size. It defaults to 1; only experience.js sets it. */
+:root {
+  --panel-border: 3px;
+  --panel-radius: 12px;
+  /* Hard offset plus soft ambient: the offset is the site's hand-drawn signature (the bonus
+     cards and the resource hand use it too), the ambient is what lifts a panel off a dark board. */
+  --panel-shadow: 5px 7px 0 rgba(20, 16, 12, .26), 0 18px 44px rgba(0, 0, 0, .34);
+  --panel-tint: 26%; /* how much --accent bleeds into the header band */
+  --panel-title-font: 'Caveat', 'Patrick Hand', 'Segoe Print', cursive, system-ui, sans-serif;
+  --panel-prose-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --panel-heading-font: 'Patrick Hand', system-ui, sans-serif;
+}
+/* --accent is deliberately NOT defined at :root. It's set per surface — the tile's resource by
+   modal.js, the card's resource by [data-resource] below, player-red on an Experience card —
+   and every consumer names its own fallback, so an undefined accent degrades to plain paper
+   rather than tinting something the wrong colour. */
+
+.panel {
+  background: var(--paper) url("/art/textures/paper.svg") repeat;
+  color: var(--ink);
+  border: var(--panel-border) solid var(--ink);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+}
+
+/* -------------------------------------------------- header band */
+.panel-head {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex; align-items: flex-start;
+  gap: calc(11px * var(--type-scale, 1));
+  padding:
+    calc(13px * var(--type-scale, 1))
+    calc(52px * var(--type-scale, 1))
+    calc(11px * var(--type-scale, 1))
+    calc(16px * var(--type-scale, 1));
+  border-bottom: 2.4px solid var(--ink);
+  background: color-mix(in srgb, var(--accent, var(--paper)) var(--panel-tint), var(--paper));
+  /* The band is the only thing touching the panel's rounded corners, so it rounds its own two
+     rather than the panel clipping its children — an Experience card has a dashed tether hanging
+     below its bottom edge that an `overflow: hidden` would eat. */
+  border-radius:
+    calc(var(--panel-radius) - var(--panel-border))
+    calc(var(--panel-radius) - var(--panel-border)) 0 0;
+}
+.panel-icons { flex: 0 0 auto; display: flex; align-items: center; gap: 5px; }
+.panel-icon { width: calc(40px * var(--type-scale, 1)); display: block; }
+/* Tile art is a full-bleed rectangle; the hex silhouette is what makes it read as a tile. */
+.panel-icon.hex { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+.panel-token { width: calc(27px * var(--type-scale, 1)); display: block; }
+/* `display: block` above out-specifies the UA's `[hidden] { display: none }`, so say it here. */
+.panel-icon[hidden], .panel-token[hidden] { display: none; }
+.panel-icons:not(:has(img:not([hidden]))) { display: none; }
+.panel-head-text { flex: 1 1 auto; min-width: 0; }
+
+.panel-eyebrow {
+  display: inline-block;
+  margin-bottom: calc(3px * var(--type-scale, 1));
+  max-width: 100%;
+  background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px;
+  padding: 0 8px;
+  font-family: var(--panel-prose-font);
+  font-size: calc(.64rem * var(--type-scale, 1)); line-height: 1.7;
+  letter-spacing: .06em; text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.panel-eyebrow:empty { display: none; }
+
+.panel-head h2, .panel-head h3 {
+  margin: 0;
+  font-family: var(--panel-title-font); font-weight: 700;
+  font-size: calc(1.7rem * var(--type-scale, 1)); line-height: 1.14;
+}
+.panel-sub {
+  margin: calc(2px * var(--type-scale, 1)) 0 0;
+  font-size: calc(1rem * var(--type-scale, 1)); opacity: .78; line-height: 1.25;
+}
+.panel-sub:empty, .panel-sub[hidden] { display: none; }
+
+.panel-close {
+  position: absolute; top: 10px; right: 12px;
+  width: 32px; height: 32px; padding: 0; border-radius: 50%;
+  background: var(--paper); border: 2px solid var(--ink); color: var(--ink);
+  font-size: 1.3rem; line-height: 1; cursor: pointer;
+}
+
+/* -------------------------------------------------- prose column */
+.panel-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding:
+    calc(14px * var(--type-scale, 1))
+    calc(18px * var(--type-scale, 1))
+    calc(16px * var(--type-scale, 1));
+  font-family: var(--panel-prose-font);
+  font-size: calc(.92rem * var(--type-scale, 1));
+  line-height: 1.55;
+}
+.panel-body > :first-child { margin-top: 0; }
+.panel-body > :last-child { margin-bottom: 0; }
+.panel-body p { margin: 0 0 10px; }
+.panel-body .summary { font-size: calc(1rem * var(--type-scale, 1)); }
+.panel-body h1, .panel-body h2, .panel-body h3, .panel-body h4 {
+  font-family: var(--panel-heading-font); font-weight: 400;
+  margin: 16px 0 5px; line-height: 1.2;
+}
+.panel-body h1 { font-size: calc(1.4rem * var(--type-scale, 1)); }
+.panel-body h2 { font-size: calc(1.26rem * var(--type-scale, 1)); }
+.panel-body h3 { font-size: calc(1.12rem * var(--type-scale, 1)); }
+.panel-body h4 { font-size: calc(1.02rem * var(--type-scale, 1)); }
+.panel-body ul, .panel-body ol { margin: 0 0 10px; padding-left: calc(20px * var(--type-scale, 1)); }
+.panel-body li { margin-bottom: 4px; }
+.panel-body a { color: var(--player); }
+.panel-body hr { border: 0; border-top: 1.5px dashed rgba(46, 40, 35, .4); margin: 14px 0; }
+.panel-body code {
+  background: rgba(46, 40, 35, .08); border-radius: 3px; padding: 1px 4px; font-size: .87em;
+}
+.panel-body pre {
+  background: rgba(46, 40, 35, .07); border: 1.5px solid rgba(46, 40, 35, .25); border-radius: 6px;
+  padding: 10px 12px; overflow-x: auto;
+}
+.panel-body pre code { background: none; padding: 0; }
+.panel-body blockquote {
+  margin: 0 0 10px; padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--accent, var(--ink)); opacity: .85;
+}
+/* An image written inline in a sentence — the only kind that isn't dealt into a pile. A run of
+   images on their own is a .photo-stack instead; see the photos section below. */
+.panel-body img {
+  width: 100%; display: block; background: #fff;
+  border: 2px solid var(--ink); border-radius: 7px;
+}
+.panel-body table {
+  width: 100%; border-collapse: collapse; margin: 0 0 10px;
+  font-size: calc(.86rem * var(--type-scale, 1));
+}
+.panel-body th, .panel-body td {
+  border: 1.4px solid rgba(46, 40, 35, .4); padding: 5px 8px; text-align: left;
+}
+/* A ranking — `**Label:** first, second, third` per item — set as a caption over its numbered
+   picks rather than as bullets that wrap. plugins/content.js decides which lists qualify; the
+   author only writes the bold label and the order.
+
+   The label goes *above* the picks, not beside them, and that's the whole layout decision:
+   labels here run from one word to six, so setting them side by side starts every row's picks
+   at a different place and leaves wrapped lines hanging under nothing. Stacked, every line in
+   the block starts at the same margin and there is nothing to align. That flush left edge is
+   also what lets the rest go quiet — no rules between rows, no tab, no second typeface.
+
+   The rank is a CSS counter off the picks' own order, which is the ordering the author already
+   wrote — nothing counts anything in the markup. It also does the separating: a numbered run
+   needs no dots between its items, so the numbers are the only mark added rather than a second
+   one on top of a first.
+
+   Selectors carry an element so they out-weigh the `.panel-body ul/li` prose rules above rather
+   than losing the indent fight to them. */
+ul.ranked { list-style: none; margin: 10px 0 0; padding: 0; }
+ul.ranked > li { margin: 0 0 11px; padding: 0; }
+.ranked-label {
+  display: block;
+  font-family: var(--panel-prose-font); font-weight: 600;
+  font-size: calc(.68rem * var(--type-scale, 1)); line-height: 1.5;
+  letter-spacing: .08em; text-transform: uppercase;
+  opacity: .58;
+}
+.ranked-items { display: block; counter-reset: rank; }
+.ranked-items > span { counter-increment: rank; }
+/* Raised and small, like a footnote mark, so the number reads as a rank on the pick rather than
+   as part of its name. No space between the two — a margin can't be broken across a line, so a
+   pick can never wrap away from its own number. */
+.ranked-items > span::before {
+  content: counter(rank);
+  margin-right: .22em;
+  font-size: .72em; font-weight: 700; vertical-align: .32em;
+  color: var(--accent, var(--ink));
+  opacity: .8;
+}
+.ranked-items > span + span { margin-left: .8em; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip {
+  border: 1.4px solid var(--ink); border-radius: 4px; padding: 1px 8px;
+  font-size: calc(.78rem * var(--type-scale, 1)); line-height: 1.5;
+}
+.links { margin: 10px 0 0; }
+.links a { color: var(--player); }
+
+/* -------------------------------------------------- footer strip */
+.panel-foot {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding:
+    calc(8px * var(--type-scale, 1))
+    calc(18px * var(--type-scale, 1))
+    calc(9px * var(--type-scale, 1));
+  border-top: 1.5px dashed rgba(46, 40, 35, .42);
+  font-family: var(--panel-prose-font);
+  font-size: calc(.78rem * var(--type-scale, 1));
+}
+.panel-foot:empty { display: none; }
+.panel-foot button {
+  background: none; border: 0; padding: 0;
+  font: inherit; color: var(--player); cursor: pointer;
+}
+.panel-foot button:hover { text-decoration: underline; }
+
+/* ==================================================================== photos */
+/* Photos are never laid out down the column and never captioned. A run of them in prose is
+   dealt into a pile of prints tossed on the page, and clicking one opens that pile in the
+   viewer below. plugins/content.js writes the markup — a <button class="photo"> per image, each
+   carrying the tilt and offset it was dealt at build time — and src/photos.js runs the viewer.
+
+   A print is a fixed-size box with the photo cropped to fill it, which is what makes a pile of
+   mixed portrait and landscape shots read as a pile of same-size prints rather than a mess. The
+   viewer is where a photo is seen whole. Sizes scale with --type-scale like the rest of the
+   shared chrome, so a pile in a collapsed Experience card is the same pile, smaller. */
+.photo-stack {
+  --print-w: 150px;
+  --print-h: 130px;
+  position: relative;
+  height: calc((var(--print-h) + 60px) * var(--type-scale, 1));
+  margin: 16px 0 12px;
+}
+
+.photo {
+  --x: 0px; --y: 0px; --r: 0deg; --z: 1;
+  /* Where this print lies in the pile, and where it slides to when the pile is fanned out. Held
+     as custom properties so the hover rules can add to a transform rather than restate it. */
+  --lie: translate(-50%, -50%) translate(var(--x), var(--y)) rotate(var(--r));
+  --fanned: translate(-50%, -50%) translate(calc(var(--x) * 2.15), calc(var(--y) * 1.5))
+            rotate(calc(var(--r) * 1.35));
+  position: absolute; top: 50%; left: 50%; z-index: var(--z);
+  width: calc(var(--print-w) * var(--type-scale, 1));
+  height: calc(var(--print-h) * var(--type-scale, 1));
+  padding: calc(6px * var(--type-scale, 1));
+  background: #fbf6ea;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  box-shadow: 3px 4px 0 rgba(20, 16, 12, .24);
+  cursor: pointer;
+  transform: var(--lie);
+  /* `z-index` carries no duration — it's in the list purely so the hover rule's delay can hold
+     it back with everything else, instead of a print jumping to the front of the pile the
+     instant the cursor crosses it. */
+  transition: transform .3s cubic-bezier(.21, .72, .29, 1), box-shadow .3s ease, z-index 0s;
+}
+/* Out-orders `.panel-body img` above, which is the rule for a lone inline image. */
+.photo img {
+  width: 100%; height: 100%; display: block;
+  object-fit: cover;
+  border: 0; border-radius: 2px; background: none;
+}
+/* A vector print is a logo, not a photograph: the ore cards each end on the mark of the skill
+   they're about. `cover` is right for a photo, which has no wrong crop, but it would shave the
+   top and bottom off a square mark to fill the taller-than-wide box — so these are fitted whole
+   and given room to sit in, and the cream of the print shows around them like paper. */
+.photo img[src$=".svg"] {
+  object-fit: contain;
+  padding: calc(10px * var(--type-scale, 1));
+}
+
+/* One strip of tape on the top print — a pile of photos on a paper board is taped down. */
+.photo:first-child::after {
+  content: '';
+  position: absolute; top: calc(-8px * var(--type-scale, 1)); left: 50%;
+  width: calc(44px * var(--type-scale, 1)); height: calc(16px * var(--type-scale, 1));
+  background: rgba(224, 177, 82, .62);
+  border: 1px solid rgba(46, 40, 35, .22);
+  transform: translateX(-50%) rotate(-4deg);
+}
+/* Hovering anywhere on the pile fans it out — the same gesture as pushing a stack of prints
+   apart with a thumb, and the whole affordance for "there is more than one of these here". */
+.photo-stack:hover .photo, .photo-stack:focus-within .photo { transform: var(--fanned); }
+/* After the fan rule, and carrying the same weight as it on purpose — a bare `.photo:hover` is
+   the lighter selector of the two and would lose the transform to it. The print under the cursor
+   comes up off the top of the fanned pile. */
+.photo-stack .photo:hover, .photo-stack .photo:focus-visible {
+  z-index: 20;
+  transform: var(--fanned) scale(1.07);
+  box-shadow: 5px 7px 0 rgba(20, 16, 12, .3);
+}
+/* Hover intent. Reaching the middle of a fanned pile means crossing the prints stacked under it,
+   and without this every one of them takes its turn on top for the frame or two the cursor is
+   over it. The delay is on the pointer case only — a print has to be pointed at for a moment
+   before it comes up — and only on the way in: the rule stops matching the moment the cursor
+   leaves, so dropping back is immediate and the pile never feels sticky. Keyboard focus is
+   deliberate by definition and is left out of it. */
+.photo-stack .photo:hover { transition-delay: 150ms; }
+.photo:focus-visible { outline: 3px solid var(--player); outline-offset: 3px; }
+
+.photo-count {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  z-index: 30; pointer-events: none;
+  background: var(--paper); border: 1.5px solid var(--ink); border-radius: 4px;
+  padding: 0 8px;
+  font-family: var(--panel-prose-font);
+  font-size: calc(.62rem * var(--type-scale, 1)); line-height: 1.7;
+  letter-spacing: .06em; text-transform: uppercase; opacity: .8;
+}
+
+/* -------------------------------------------------- the viewer */
+/* The collage a pile opens into: the print you picked in the middle, the two either side of it
+   showing past the left and right edges of the screen, and nothing to click but the photos
+   themselves — clicking an edge brings that one in. A <dialog> because the tile modal is one
+   too, and the only thing that stacks above the browser's top layer is another dialog. */
+dialog.pv {
+  --peek: clamp(26px, 6.5vw, 78px); /* how much of a neighbour shows past the screen edge */
+  position: fixed; inset: 0;
+  width: 100vw; max-width: 100vw;
+  height: 100vh; height: 100dvh; max-height: 100dvh;
+  margin: 0; padding: 0; border: 0; background: none; overflow: hidden;
+}
+dialog.pv::backdrop { background: rgba(28, 23, 19, .84); }
+.pv-stage { position: absolute; inset: 0; }
+
+.pv-slide {
+  --r: 0deg;
+  --nudge: 0px; /* how far a neighbour leans in: further on hover, right out of frame when far */
+  position: absolute; top: 50%; left: 50%;
+  padding: 10px 10px 12px;
+  background: #fbf6ea;
+  border: 2.5px solid var(--ink); border-radius: 6px;
+  box-shadow: 6px 8px 0 rgba(20, 16, 12, .32), 0 22px 60px rgba(0, 0, 0, .45);
+  cursor: pointer;
+  transition: transform .44s cubic-bezier(.21, .72, .29, 1), opacity .44s ease;
+}
+.pv-slide img {
+  display: block; width: auto; height: auto;
+  max-width: min(70vw, 880px); max-height: 68dvh;
+  border-radius: 3px;
+  /* photos.js paints the pile's already-cached thumbnail in here while the full-size rung of
+     the srcset is still on the wire, so a slide is never an empty frame. */
+  background-size: cover; background-position: center;
+}
+
+/* Two translates before the offset: the first centres the print, the second puts its inner edge
+   on the centre line — so the last one can push it out to the screen edge and leave exactly
+   --peek of it showing, whatever shape that particular photo happens to be. */
+.pv-slide[data-pos="0"] {
+  z-index: 3; opacity: 1; cursor: default;
+  transform: translate(-50%, -50%) rotate(var(--r));
+}
+.pv-slide[data-pos="-1"], .pv-slide[data-pos="-2"] {
+  z-index: 2;
+  transform: translate(-50%, -50%) translateX(-50%)
+             translateX(calc(-50vw + var(--peek) + var(--nudge)))
+             rotate(calc(var(--r) - 5.5deg)) scale(.93);
+}
+.pv-slide[data-pos="1"], .pv-slide[data-pos="2"] {
+  z-index: 2;
+  transform: translate(-50%, -50%) translateX(50%)
+             translateX(calc(50vw - var(--peek) - var(--nudge)))
+             rotate(calc(var(--r) + 5.5deg)) scale(.93);
+}
+.pv-slide[data-pos="-1"], .pv-slide[data-pos="1"] { opacity: .42; }
+/* Everything further out waits in the same place with nothing showing, so it arrives from
+   behind its neighbour rather than out of nowhere. */
+.pv-slide[data-pos="-2"], .pv-slide[data-pos="2"] {
+  opacity: 0; pointer-events: none; --nudge: -80px;
+}
+.pv-slide[data-pos="-1"]:hover, .pv-slide[data-pos="1"]:hover,
+.pv-slide[data-pos="-1"]:focus-visible, .pv-slide[data-pos="1"]:focus-visible {
+  opacity: .85; --nudge: 24px;
+}
+.pv-slide:focus-visible { outline: 3px solid var(--player); outline-offset: 4px; }
+
+/* A vector slide has no pixels to be sized from. plugins/images.js only ladders raster photos,
+   so an SVG arrives here with no srcset and no width/height, and `width: auto` on a file that
+   carries nothing but a viewBox leaves the browser to invent a size: the slide collapses around
+   it and the two tape strips, pinned to the slide's own edges, cross over in the middle. So give
+   it a size outright. The placeholder background goes with it — painting the cached thumbnail
+   under the image is what stops a slide being an empty frame while the big rung loads, and for a
+   vector there is no big rung and no wait, just the same mark showing through itself. */
+.pv-slide img[src$=".svg"] {
+  width: min(52vw, 360px);
+  height: min(52vw, 360px);
+  object-fit: contain;
+  padding: 7%;
+  background: none;
+}
+
+/* Tape, on the one being looked at only — it's the print that's been put up on the board. */
+.pv-slide[data-pos="0"]::before, .pv-slide[data-pos="0"]::after {
+  content: '';
+  position: absolute; top: -13px;
+  width: 84px; height: 25px;
+  background: rgba(224, 177, 82, .6);
+  border: 1px solid rgba(46, 40, 35, .2);
+}
+.pv-slide[data-pos="0"]::before { left: -20px; transform: rotate(-34deg); }
+.pv-slide[data-pos="0"]::after { right: -20px; transform: rotate(34deg); }
+
+.pv-count {
+  position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+  z-index: 5; margin: 0; pointer-events: none;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 999px;
+  padding: 1px 15px; font-size: 1.15rem;
+  box-shadow: 3px 4px 0 rgba(20, 16, 12, .26);
+}
+.pv-count:empty { display: none; }
+.pv-close { z-index: 6; }
+
+@keyframes pv-fade { from { opacity: 0; } to { opacity: 1; } }
+/* The collage is laid out on the screen rather than dropped onto it: the same easing as the
+   panel rise, so arriving here from a modal doesn't change the site's vocabulary. */
+@keyframes pv-lay-out {
+  from { opacity: 0; transform: scale(.88) translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+dialog.pv[open] { animation: pv-fade .26s ease; }
+dialog.pv[open]::backdrop { animation: pv-fade .26s ease; }
+dialog.pv[open] .pv-stage { animation: pv-lay-out .36s cubic-bezier(.21, .72, .29, 1); }
+dialog.pv.closing, dialog.pv.closing::backdrop { animation: pv-fade .2s ease reverse forwards; }
+/* Nothing lands on a collage that's on its way out — same as the tile modal while it sinks. */
+dialog.pv.closing { pointer-events: none; }
+
+/* ==================================================================== resource card panel */
+/* The overlay a hand card flips into. Everything here is the *mechanism* — the scrim, the
+   turning box and its timing. What the box contains is .panel / .panel-head / .panel-body
+   above, exactly like the tile modal and an expanded Experience card. */
+/* Above the experience showcase (45); the native <dialog> renders in the browser's top layer
+   above both, and cards.js closes one before opening the other regardless. */
+.rc-overlay {
+  position: fixed; inset: 0; z-index: 46;
+  perspective: 1800px;
+}
+.rc-overlay[hidden] { display: none; }
+
+/* No fading the HUD out here, on purpose: this overlay sits above it (z-index 46 vs the HUD's
+   40), so Trade, Resume and the dice are already dimmed by the scrim and already unclickable
+   through it. Hiding them as well just made them blink out and back on every card. The showcase
+   below is the exception — it lifts the road *over* the board rather than covering the screen,
+   so the HUD would read as a set of ghosts floating on top of it. */
+.rc-scrim {
+  position: absolute; inset: 0;
+  background: rgba(46, 40, 35, .66);
+  opacity: 0; transition: opacity .5s ease;
+}
+.rc-overlay.open .rc-scrim { opacity: 1; }
+
+/* The flipping box. left/top/width/height are set inline by cards.js — first to the clicked
+   card's exact on-screen rect, then to the centred panel rect. The turn leads and the growth
+   follows (note the delays), so the card reads as flipping over *then* opening out; .closing
+   swaps the two delays to run it backwards. */
+.rc-flip {
+  position: absolute;
+  transform-style: preserve-3d;
+  will-change: transform, left, top, width, height;
+  transform: rotateY(0deg);
+  transition:
+    transform .5s cubic-bezier(.55, .05, .3, 1),
+    left .44s cubic-bezier(.33, 0, .2, 1) .26s,
+    top .44s cubic-bezier(.33, 0, .2, 1) .26s,
+    width .44s cubic-bezier(.33, 0, .2, 1) .26s,
+    height .44s cubic-bezier(.33, 0, .2, 1) .26s;
+}
+.rc-overlay.open .rc-flip { transform: rotateY(180deg); }
+.rc-flip.closing {
+  transition:
+    transform .44s cubic-bezier(.55, .05, .3, 1) .24s,
+    left .42s cubic-bezier(.33, 0, .2, 1),
+    top .42s cubic-bezier(.33, 0, .2, 1),
+    width .42s cubic-bezier(.33, 0, .2, 1),
+    height .42s cubic-bezier(.33, 0, .2, 1);
+}
+.rc-flip.instant { transition: none; }
+/* The flight is over — hand the compositor layer back. */
+.rc-overlay.landed .rc-flip { will-change: auto; }
+
+.rc-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  border-radius: var(--panel-radius);
+}
+.rc-front img { width: 100%; height: 100%; object-fit: fill; }
+.rc-back { transform: rotateY(180deg); }
+.rc-overlay[data-resource="wood"] { --accent: var(--wood); }
+.rc-overlay[data-resource="wheat"] { --accent: var(--wheat); }
+.rc-overlay[data-resource="brick"] { --accent: var(--brick); }
+.rc-overlay[data-resource="ore"] { --accent: var(--ore); }
+.rc-overlay[data-resource="sheep"] { --accent: var(--sheep); }
+
+/* Laid out once at the final panel size by cards.js and clipped by the box above while that box
+   grows — deliberately NOT a percentage of it, so the text is revealed rather than reflowed on
+   every frame of the flight. */
+.rc-panel {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column;
+  opacity: 0; transition: opacity .3s ease .3s;
+}
+.rc-overlay.open .rc-panel { opacity: 1; }
+.rc-flip.closing .rc-panel { opacity: 0; transition: opacity .18s ease; }
+/* The footer here is a status line, not a nav — no button, so nothing to space apart. */
+.rc-deck { justify-content: flex-start; opacity: .66; letter-spacing: .03em; }
+
+/* ==================================================================== toast */
+/* Top-centre. The bottom of the screen belongs to the resource hand, and a message parked over
+   the very cards it is announcing was unreadable — so it drops in from the top instead, into the
+   space the site title occupies, and the title steps aside while it's there (see below).
+   The width leaves the Trade and Resume corner buttons clear on either side. */
+.rc-toast {
+  position: fixed; left: 50%; top: 14px; transform: translate(-50%, -10px);
+  z-index: 60; max-width: min(560px, calc(100vw - 280px));
+  background: var(--ink); color: var(--paper);
+  border-radius: 8px; padding: 9px 16px;
+  font-size: 1.05rem; text-align: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3);
+  opacity: 0; transition: opacity .3s ease, transform .3s ease;
+  pointer-events: none;
+}
+.rc-toast.up { opacity: 1; transform: translate(-50%, 0); }
+/* The title and tagline sit exactly where the toast lands, so they fade out for as long as one
+   is up. Same treatment the Experience showcase gives them, for the same reason. */
+body.toast-up .hud-header { opacity: 0; }
+
+/* ==================================================================== HUD (screen-fixed) */
+.hud-header, .hud, .home-btn { user-select: none; -webkit-user-select: none; }
+.hud-header {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+  text-align: center; z-index: 30; pointer-events: none;
+  /* Here rather than on the rules that hide it, so the header eases back in as well as out —
+     both the toast and the Experience showcase take this space over temporarily. */
+  transition: opacity .3s ease;
+}
+.hud-header h1 { margin: 0; font-size: 1.7rem; }
+.hud-header .tagline { margin: 0; opacity: .72; font-size: .95rem; }
+
+.hud { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+.hud-btn {
+  position: absolute;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 6px;
+  padding: 7px 13px; text-decoration: none; color: var(--ink);
+  font: inherit; font-size: 1.05rem; cursor: pointer; pointer-events: auto;
+}
+.trade { top: 14px; left: 14px; }
+.resume-corner { top: 14px; right: 14px; }
+.dice-hud { position: absolute; top: 60px; right: 14px; pointer-events: auto; }
+
+/* ---- victory points, bottom-left. Trade is top-left, the dice top-right, home bottom-right —
+   this is the one free corner, and it's the corner a Catan score usually sits in anyway. */
+.vp-hud { position: fixed; bottom: 14px; left: 14px; z-index: 40; user-select: none; -webkit-user-select: none; }
+.vp-chip {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 8px;
+  padding: 5px 13px 5px 11px;
+  font: inherit; color: var(--ink); cursor: pointer;
+  box-shadow: 3px 4px 0 rgba(46, 40, 35, .18);
+}
+.vp-count { font-size: 1.9rem; line-height: 1; min-width: 1.1em; text-align: center; }
+.vp-label { font-size: .72rem; line-height: 1.15; text-align: left; opacity: .72; text-transform: uppercase; letter-spacing: .04em; }
+/* Same red glow the resource hand uses when a card is dealt — a point arriving reads the same
+   way a card arriving does. */
+.vp-chip.bump { animation: vp-bump .7s ease-out; }
+@keyframes vp-bump {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.14); box-shadow: 0 0 16px var(--player), 3px 4px 0 rgba(46, 40, 35, .18); }
+  100% { transform: scale(1); }
+}
+/* Won: the chip stays, goes gold, and keeps counting. */
+.vp-hud.is-won .vp-chip { background: color-mix(in srgb, var(--wheat) 42%, var(--paper)); }
+.vp-hud.is-won .vp-count::after { content: " 🏆"; font-size: .9rem; }
+
+.vp-breakdown {
+  position: absolute; bottom: calc(100% + 8px); left: 0;
+  width: 232px;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 8px;
+  padding: 8px 11px;
+  box-shadow: 3px 4px 0 rgba(46, 40, 35, .18);
+  font-family: var(--panel-prose-font); font-size: .78rem;
+}
+.vp-breakdown p { display: flex; justify-content: space-between; gap: 12px; margin: 0 0 3px; }
+.vp-breakdown p.none { opacity: .4; }
+.vp-breakdown .vp-total { margin: 6px 0 0; padding-top: 5px; border-top: 1.5px dashed rgba(46, 40, 35, .4); }
+
+/* ---- the bank picker, shared by Year of Plenty and Monopoly */
+.pick-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; }
+.pick-overlay[hidden] { display: none; }
+.pick-scrim { position: absolute; inset: 0; background: rgba(46, 40, 35, .55); opacity: 0; transition: opacity .25s ease; }
+.pick-overlay.open .pick-scrim { opacity: 1; }
+.pick-box {
+  --accent: var(--dev);
+  position: relative; z-index: 1;
+  width: min(560px, calc(100vw - 32px));
+  padding: 16px 18px 14px; text-align: center;
+  opacity: 0; transform: scale(.94);
+  transition: opacity .25s ease, transform .25s cubic-bezier(.2, .75, .3, 1);
+}
+.pick-overlay.open .pick-box { opacity: 1; transform: none; }
+.pick-title { margin: 0; font-family: var(--panel-title-font); font-size: 1.7rem; }
+.pick-sub { margin: 2px 0 12px; font-family: var(--panel-prose-font); font-size: .84rem; opacity: .8; }
+.pick-grid { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.pick-card {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: 0; padding: 4px; border-radius: 8px;
+  font: inherit; color: var(--ink); cursor: pointer;
+  transition: transform .15s ease;
+}
+.pick-card img { width: 74px; display: block; filter: drop-shadow(2px 3px 0 rgba(46, 40, 35, .22)); }
+.pick-name { font-size: .95rem; }
+.pick-left { font-family: var(--panel-prose-font); font-size: .68rem; opacity: .65; }
+.pick-card:hover:not(:disabled), .pick-card:focus-visible { transform: translateY(-6px); }
+.pick-card.out { opacity: .34; cursor: not-allowed; }
+.pick-cancel {
+  margin-top: 12px; font: inherit; font-size: .95rem; cursor: pointer;
+  background: none; border: 0; color: var(--ink); opacity: .6; text-decoration: underline;
+}
+
+/* ---- ten points. A celebration, not an ending — nothing behind this is disabled. */
+.win-overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; }
+.win-overlay[hidden] { display: none; }
+.win-scrim { position: absolute; inset: 0; background: rgba(46, 40, 35, .6); opacity: 0; transition: opacity .3s ease; }
+.win-overlay.open .win-scrim { opacity: 1; }
+.win-card {
+  --accent: var(--wheat);
+  position: relative; z-index: 2;
+  width: min(440px, calc(100vw - 32px));
+  padding: 22px 26px 20px; text-align: center;
+  background: color-mix(in srgb, var(--wheat) 14%, var(--paper));
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.win-overlay.open .win-card { opacity: 1; animation: panel-rise .6s cubic-bezier(.21, .72, .29, 1); }
+.win-eyebrow {
+  margin: 0; font-family: var(--panel-prose-font);
+  font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; opacity: .65;
+}
+.win-score { margin: 2px 0 -8px; font-size: 5rem; line-height: 1; color: var(--player); }
+.win-card h2 { margin: 0 0 8px; font-family: var(--panel-title-font); font-size: 1.5rem; }
+.win-sub { margin: 0 0 16px; font-family: var(--panel-prose-font); font-size: .84rem; line-height: 1.5; opacity: .85; }
+.win-close {
+  font: inherit; font-size: 1.05rem; cursor: pointer;
+  background: var(--player); color: var(--paper); border: 0; border-radius: 6px; padding: 8px 18px;
+}
+
+/* Confetti: the board's own two shapes — hexes and resource cards — tumbling past. Built by
+   victory.js, which writes the per-piece colour, drift and timing into inline custom properties;
+   nothing is generated under prefers-reduced-motion. */
+.win-confetti { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.win-confetti i {
+  position: absolute; top: -6vh;
+  width: 13px; height: 15px;
+  background: var(--c);
+  opacity: .9;
+  animation: win-fall linear forwards;
+}
+.win-confetti i.hex { clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.win-confetti i.card { width: 11px; height: 16px; border-radius: 2px; }
+@keyframes win-fall {
+  from { transform: translate(0, 0) rotate(0turn); opacity: .95; }
+  to { transform: translate(var(--drift), 112vh) rotate(var(--spin)); opacity: .5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vp-chip, .pick-box, .pick-card, .win-card { animation: none; transition: none; }
+  .win-overlay.open .win-card { animation: none; }
+}
+
+.home-btn {
+  position: fixed; bottom: 14px; right: 14px; z-index: 40;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--paper); border: 2px solid var(--ink); color: var(--ink);
+  font-size: 1.3rem; cursor: pointer;
+}
+
+.dice { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.dice-roll {
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 8px;
+  padding: 6px 8px; cursor: pointer;
+}
+.dice-faces { display: flex; gap: 4px; }
+.die {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+  width: 34px; height: 34px; padding: 4px;
+  background: var(--paper); border: 1.6px solid var(--ink); border-radius: 4px;
+}
+.die i { display: block; width: 100%; }
+.die i.pip { background: var(--ink); border-radius: 50%; }
+.dice-count {
+  font-size: .82rem; background: var(--paper); border: 1.5px solid var(--ink);
+  border-radius: 4px; padding: 1px 8px;
+}
+
+/* ==================================================================== tile modal */
+/* The shared <dialog>. Its surface is .panel and its header/body/footer are the shared
+   .panel-* rules — everything here is geometry, the rise-off-the-hex animation, and the few
+   widgets only this modal has (the résumé embed, the project grid, the contact form). */
+dialog#modal {
+  padding: 0;
+  max-width: 580px; width: 92vw; max-height: 86vh;
+  overflow: visible; /* the shadow is outside the border box */
+}
+dialog#modal[open] { display: flex; flex-direction: column; }
+dialog#modal::backdrop { background: rgba(46, 40, 35, .58); }
+
+/* -------- entrance: the tile stands up off the board.
+   modal.js measures whichever hex, road piece or HUD button the modal was opened from and
+   writes the offset to the card's resting position into --from-*, so the panel grows out of the
+   thing you actually clicked. Same family as the resource card's flip and the road chain's lift:
+   something on the board comes towards you and opens. */
+@keyframes panel-rise {
+  from {
+    opacity: 0;
+    transform:
+      perspective(1400px)
+      translate(var(--from-x, 0px), var(--from-y, 0px))
+      scale(var(--from-scale, .3))
+      rotateX(26deg);
+  }
+  to { opacity: 1; transform: perspective(1400px) translate(0, 0) scale(1) rotateX(0deg); }
+}
+@keyframes panel-fade { from { opacity: 0; } to { opacity: 1; } }
+/* Navigating prev/next while it's already open: the panel is already where it belongs, so it
+   settles rather than flying back to a hex and returning. */
+@keyframes panel-swap {
+  from { opacity: .25; transform: perspective(1400px) translateY(9px) scale(.975); }
+  to { opacity: 1; transform: none; }
+}
+
+dialog#modal.opening { animation: panel-rise .56s cubic-bezier(.21, .72, .29, 1); }
+dialog#modal.opening::backdrop { animation: panel-fade .42s ease; }
+dialog#modal.swapping { animation: panel-swap .26s ease-out; }
+dialog#modal.closing {
+  pointer-events: none;
+  animation: panel-rise .3s cubic-bezier(.5, 0, .75, .4) reverse forwards;
+}
+dialog#modal.closing::backdrop { animation: panel-fade .3s ease reverse forwards; }
+
+/* -------- modal-only widgets */
+.resume-embed {
+  width: 100%; height: 320px; margin-bottom: 10px;
+  border: 1.5px solid var(--ink); border-radius: 6px;
+}
+.embed-fallback { font-size: .8rem; opacity: .75; }
+
+.card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.card-grid-item {
+  text-align: left; cursor: pointer; font: inherit; color: var(--ink);
+  background: var(--paper); border: 1.6px solid var(--ink); border-radius: 8px;
+  padding: 9px 11px;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.card-grid-item:hover { transform: translate(-1px, -2px); box-shadow: 3px 4px 0 rgba(20, 16, 12, .22); }
+.card-grid-item h4 {
+  margin: 0 0 3px; font-family: var(--panel-title-font); font-weight: 700; font-size: 1.15rem;
+}
+.card-grid-item p { margin: 0; font-family: var(--panel-prose-font); font-size: .78rem; opacity: .85; }
+
+.contact-form { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.contact-form label { display: flex; flex-direction: column; gap: 3px; font-size: .82rem; }
+.contact-form input, .contact-form textarea {
+  font: inherit; font-family: var(--panel-prose-font);
+  padding: 6px 8px; border: 1.5px solid var(--ink); border-radius: 5px;
+}
+.contact-form button {
+  align-self: flex-start; font: inherit; cursor: pointer;
+  background: var(--player); color: var(--paper); border: 0; border-radius: 6px; padding: 7px 16px;
+}
+
+/* The prev/next pair is the one footer that needs its two ends pushed apart, which is already
+   what .panel-foot does — a single Back button just sits at the left. */
+.m-nav .nav-back { margin-right: auto; }
+
+/* ==================================================================== experience showcase */
+/* Sits above the board and the HUD but below the native <dialog>, which renders in the browser's
+   top layer regardless — the two are never open at the same time anyway. */
+.exp-overlay {
+  position: fixed; inset: 0; z-index: 45;
+  user-select: none; -webkit-user-select: none;
+}
+.exp-overlay[hidden] { display: none; }
+
+/* The site header and HUD would otherwise sit behind the scrim as visible ghosts. */
+body.exp-open .hud-header,
+body.exp-open .hud,
+body.exp-open .vp-hud,
+body.exp-open .home-btn { opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+
+.exp-scrim {
+  position: absolute; inset: 0;
+  background: rgba(46, 40, 35, .66);
+  opacity: 0;
+  transition: opacity .55s ease;
+}
+.exp-overlay.lit .exp-scrim { opacity: 1; }
+
+/* The lifted road chain. Sized to the board's own coordinate box and driven entirely by a
+   transform from experience.js, which starts it exactly on top of the real on-board road. */
+.exp-stage {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  pointer-events: none; /* clicks fall through to the scrim behind it */
+  will-change: transform;
+  transition: opacity .4s ease;
+}
+.exp-stage .exp-road .road-seg,
+.exp-stage .exp-road image { filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.exp-overlay.focused .exp-stage { opacity: .16; }
+
+.exp-head {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  text-align: center; color: var(--paper); pointer-events: none;
+  opacity: 0; transition: opacity .5s ease .15s;
+}
+.exp-overlay.lit .exp-head { opacity: 1; }
+.exp-head h2 { margin: 0; font-size: 2rem; }
+.exp-head p { margin: 2px 0 0; font-size: 1.05rem; opacity: .8; }
+/* Short window: the subtitle's height is worth more to the cards than the line is to the page. */
+.exp-overlay.compact .exp-head h2 { font-size: 1.6rem; }
+.exp-overlay.compact .exp-head p { display: none; }
+
+.exp-close {
+  position: absolute; top: 14px; right: 16px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--paper); border: 2px solid var(--ink); color: var(--ink);
+  font-size: 1.5rem; line-height: 1; cursor: pointer;
+  opacity: 0; transition: opacity .5s ease .15s;
+  z-index: 3;
+}
+.exp-overlay.lit .exp-close { opacity: 1; }
+
+/* One card per milestone, each anchored by its bottom edge just above its own piece. Geometry
+   (left/bottom/width/height) is all set inline by experience.js — the row heights are measured
+   against the space actually left under the title, and the same four properties animate when a
+   card expands, so the collapsed card morphs into the detail panel rather than being replaced.
+
+   The card is a .panel, so a collapsed teaser is a miniature of the tile modal and the resource
+   card panel, and expanding it grows that miniature to full size: `--type-scale` is the only
+   thing that changes between the two, and everything the shared rules draw scales with it. */
+.exp-cards { position: absolute; inset: 0; pointer-events: none; }
+.exp-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 0; /* the .panel-* bands carry their own */
+  transform: translate(-50%, 14px);
+  opacity: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  --accent: var(--player); /* the road, its settlements and its cities are all player-red */
+  transition:
+    opacity .45s ease,
+    transform .45s cubic-bezier(.215,.61,.355,1),
+    left .42s cubic-bezier(.215,.61,.355,1),
+    bottom .42s cubic-bezier(.215,.61,.355,1),
+    width .42s cubic-bezier(.215,.61,.355,1),
+    height .42s cubic-bezier(.215,.61,.355,1);
+}
+.exp-overlay.landed .exp-card {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: calc(var(--i) * var(--stagger, 70ms));
+}
+/* Dashed tether from each card down to the piece it describes. */
+.exp-card::after {
+  content: '';
+  position: absolute; left: 50%; bottom: calc(-1 * var(--stem, 22px));
+  width: 0; height: var(--stem, 22px);
+  border-left: 2px dashed var(--player);
+  opacity: .85;
+}
+.exp-card.ghost { opacity: 0; border-style: dashed; }
+.exp-overlay.landed .exp-card.ghost { opacity: .82; }
+
+/* A collapsed card is a teaser, so it never scrolls: whatever doesn't fit the row is clipped and
+   the "Read more" button below is the way to the rest. Only the expanded panel — which really is
+   a document — gets a scrollbar. */
+.exp-card-scroll { overflow: hidden; }
+/* Two gates, because an expanded panel is sized to exactly fit its content and so should never
+   show a scrollbar: `is-capped` means the viewport cut it short and scrolling is genuinely the
+   only way to the rest, and `is-settled` lands after the expand morph, since during the growth
+   the full content is already in place inside a box that hasn't caught up yet. */
+.exp-card.is-focused.is-settled.is-capped .exp-card-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Fade the last line out when there is more below, so a clipped card reads as deliberate. */
+.exp-card:not(.is-focused).is-clipped .exp-card-scroll {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent 100%);
+}
+/* Short window: the collapsed card keeps only the headline content and sends the rest to the
+   expanded view, rather than clipping a bullet list after two lines. */
+.exp-overlay.tight .exp-card:not(.is-focused) ul { display: none; }
+.exp-overlay.tight .exp-card:not(.is-focused) .panel-sub { display: none; }
+
+/* Collapsed, the header band has to earn its height back — tighter padding and a smaller piece
+   than the full-size panel uses, on top of the `--type-scale` the row is already fitted to. */
+.exp-card:not(.is-focused) .panel-head { gap: 7px; padding: 7px 10px 6px; }
+.exp-card:not(.is-focused) .panel-close { display: none; }
+.exp-card:not(.is-focused) .panel-icon { width: calc(30px * var(--type-scale, 1)); }
+.exp-card:not(.is-focused) .panel-eyebrow { font-size: calc(.92rem * var(--type-scale, 1)); }
+.exp-card:not(.is-focused) .panel-body { padding: 8px 11px; }
+.exp-card:not(.is-focused) .exp-card-more { padding: 4px 11px 5px; }
+/* No `overflow` rule for .panel-body here on purpose. The scroller and the panel body are the
+   same element (`class="exp-card-scroll panel-body"`), so anything set here fights the
+   .exp-card-scroll rules above rather than complementing them — and `.exp-card .panel-body`
+   wins on specificity, which quietly switched off every clip in this section: the collapsed
+   teaser's, and the one that holds the long-form content inside the box while it grows. The
+   shared `.panel-body { overflow-y: auto }` is already out-ordered by .exp-card-scroll, which
+   comes later in this file, so it needs no answer here. */
+.exp-card .panel-body:empty { display: none; }
+
+/* The expand affordance, pinned below the scroller so it stays visible however tall the card is. */
+.exp-card-more {
+  width: 100%;
+  background: none; border: 0; cursor: pointer;
+  border-top: 1.5px dashed rgba(46, 40, 35, .42);
+  font: inherit; font-family: var(--panel-prose-font);
+  font-size: calc(.76rem * var(--type-scale, 1));
+  color: var(--player); text-align: left;
+}
+.exp-card-more:hover { text-decoration: underline; }
+.exp-more-close { display: none; }
+.exp-card.is-focused .exp-more-open { display: none; }
+.exp-card.is-focused .exp-more-close { display: inline; }
+
+/* -------- expanded card: the long-form view, with room for photos and extra copy */
+.exp-card:not(.is-focused) .exp-extra { display: none; }
+.exp-card.is-focused {
+  z-index: 4;
+  cursor: default;
+  box-shadow: 7px 10px 0 rgba(20, 16, 12, .3), 0 22px 52px rgba(0, 0, 0, .4);
+  user-select: text; -webkit-user-select: text;
+}
+.exp-card.is-focused::after { display: none; } /* no tether — it's left the row */
+.exp-overlay.landed .exp-card.is-focused.ghost { opacity: 1; } /* out-specifies the .82 above */
+/* Higher specificity than the .landed rule, so the rest of the row clears out of the way. */
+.exp-overlay.focused .exp-card:not(.is-focused) { opacity: 0; pointer-events: none; }
+
+.exp-extra { margin-top: 12px; padding-top: 12px; border-top: 1.5px dashed rgba(46, 40, 35, .35); }
+
+/* ==================================================================== mobile fallback */
+.stack { display: none; }
+
+@media (max-width: 780px) {
+  /* Undo the desktop camera's fixed-viewport trick entirely — this is just a normal page now. */
+  html, body { height: auto; overflow: visible; }
+  /* The victory-point chip goes with the dice and the robber: there is no board to score down
+     here and no way to earn a point, so a counter would be a number that never moves. */
+  .viewport, .hud, .hud-header, .home-btn, .vp-hud { display: none; }
+  .stack {
+    display: block;
+    max-width: 480px; margin: 0 auto;
+    padding: 16px 14px 48px;
+  }
+  .m-ports { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 10px; }
+  .m-ports a {
+    font-size: .85rem; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 5px;
+    padding: 4px 9px; text-decoration: none; color: var(--ink);
+  }
+  .m-trade {
+    display: block; width: 100%; margin-bottom: 14px; padding: 10px; font: inherit; font-size: 1.15rem;
+    background: var(--paper); border: 2px solid var(--ink); border-radius: 8px; color: var(--ink); cursor: pointer;
+  }
+  /* The page behind is a normal scrolling document down here, so it needs pinning. */
+  body.rc-open { overflow: hidden; }
+  /* No Trade or Resume button in the corners at this width, so the toast gets the full span
+     back — the desktop rule reserves room for two buttons that aren't there. */
+  .rc-toast { max-width: calc(100vw - 32px); }
+
+  .m-hand-group { border-left-color: var(--player); }
+  .m-hand-note { font-family: system-ui, sans-serif; font-size: .8rem; opacity: .75; margin: 0 0 10px; }
+  .m-hand .hand { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; -webkit-overflow-scrolling: touch; }
+  .m-hand .hand-card { flex: 0 0 auto; margin-left: 0; }
+  .m-hand .hand-card.same-resource { margin-left: 0; }
+  .m-hand .hand-card img { height: 104px; }
+  /* No hover on touch, and the tooltip would be clipped by the scroller anyway. */
+  .m-hand .hand-tip { display: none; }
+  .m-dev {
+    display: block; width: 100%; margin-bottom: 4px; padding: 10px; font: inherit; font-size: 1.05rem;
+    background: var(--paper); border: 2px dashed var(--ink); border-radius: 8px; color: var(--ink); cursor: pointer;
+  }
+  /* The same face-up card as the desktop deck (.dev-head / .dev-body), art above the text rather
+     than beside it — at this width a 108px art column would leave the rules text a gutter. */
+  .m-dev-card {
+    --accent: var(--dev);
+    margin: 8px 0 18px;
+    border-width: 2.4px; border-radius: 9px; overflow: hidden;
+    box-shadow: 3px 4px 0 rgba(46, 40, 35, .2);
+  }
+  .m-dev-art {
+    display: block; width: 90px; margin: 10px auto 0;
+  }
+
+  .m-group { margin-bottom: 20px; border-left: 4px solid var(--accent, var(--ink)); padding-left: 10px; }
+  .m-group h2 { font-size: 1.2rem; margin: 0 0 8px; }
+  .m-tile {
+    display: flex; align-items: center; gap: 12px; width: 100%; margin-bottom: 8px;
+    background: none; border: 2px solid var(--ink); border-radius: 8px; padding: 8px 12px;
+    font: inherit; font-size: 1.15rem; color: var(--ink); text-align: left;
+  }
+  .m-tile img { width: 44px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+  .m-tile.m-filler { opacity: .55; border-style: dashed; font-size: .95rem; }
+  .m-milestone.city img { filter: drop-shadow(0 0 4px var(--player)); }
+  .m-milestone small { display: block; font-size: .75rem; opacity: .7; font-family: system-ui, sans-serif; }
+
+  /* Tapping the Experience tile scrolls here — flash so it's obvious where you landed. */
+  .m-timeline { scroll-margin-top: 12px; }
+  .m-timeline.flash { animation: m-flash 1.4s ease-out; }
+  @keyframes m-flash {
+    0%, 100% { border-left-color: var(--accent, var(--ink)); }
+    25% { border-left-color: var(--player); background: rgba(192, 70, 43, .09); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
