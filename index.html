@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Akash Sarode</title>
+<meta name="description" content="Akash Sarode. Laid out as a hex-tile map. Scroll and zoom to explore.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="viewport" id="viewport">
+  <div class="world" id="world"></div>
+</div>
+
+<header class="hud-header">
+  <h1>Akash Sarode</h1>
+  <p class="tagline">Cloud/Systems Engineer and Catan Tryhard</p>
+</header>
+
+<div class="hud">
+  <button class="hud-btn trade" id="trade-btn" type="button">Trade</button>
+  <div class="dice-hud" id="dice-hud"></div>
+  <a class="hud-btn resume-corner" id="resume-corner" href="/resume/Akash_Sarode.pdf" target="_blank" rel="noopener">Resume (PDF)</a>
+</div>
+
+<button class="home-btn" id="home-btn" type="button" title="Reset view" aria-label="Reset view to fit the whole board">⌂</button>
+
+<!-- Victory points. Most of the number is already on the board when the page loads — the road's
+     settlements and cities, plus Longest Road — so this starts at 9 and the dev deck finishes
+     the game. Built and driven by src/victory.js. -->
+<div class="vp-hud" id="vp-hud"></div>
+
+<!-- "Which resource?" — shared by Year of Plenty (two picks) and Monopoly (one). Driven by
+     src/dev.js. -->
+<div class="pick-overlay" id="bank-pick" role="dialog" aria-modal="true" aria-label="Take from the bank" hidden>
+  <div class="pick-scrim"></div>
+  <div class="pick-box panel">
+    <h2 class="pick-title"></h2>
+    <p class="pick-sub"></p>
+    <div class="pick-grid"></div>
+    <button type="button" class="pick-cancel">Never mind</button>
+  </div>
+</div>
+
+<!-- Ten points. A celebration, not an ending: dismissing this hands the board straight back and
+     the counter keeps climbing. Driven by src/victory.js. -->
+<div class="win-overlay" id="win-overlay" role="dialog" aria-modal="true" aria-label="You win" hidden>
+  <div class="win-scrim"></div>
+  <div class="win-confetti" aria-hidden="true"></div>
+  <div class="win-card panel">
+    <p class="win-eyebrow">Victory</p>
+    <p class="win-score">10</p>
+    <h2>points</h2>
+    <p class="win-sub">Settlements, cities, the longest road and whatever the deck handed you.
+      Thanks for playing! The board is still yours, keep drawing.</p>
+    <button type="button" class="win-close">Back to the board</button>
+  </div>
+</div>
+
+<nav class="stack" id="stack" aria-label="Site sections"></nav>
+
+<!-- The Experience showcase: the road chain lifted off the board with a card above every
+     settlement/city. Built and driven by src/experience.js. -->
+<div class="exp-overlay" id="exp-overlay" role="dialog" aria-modal="true" aria-label="Experience" hidden>
+  <div class="exp-scrim"></div>
+  <div class="exp-stage"></div>
+  <div class="exp-cards"></div>
+  <header class="exp-head">
+    <h2>Experience</h2>
+    <p>Every settlement and city on the board is a role!</p>
+  </header>
+  <button class="exp-close" type="button" aria-label="Close and return to the board">&times;</button>
+</div>
+
+<!-- A resource card flipping over and growing into a reading panel. The box (.rc-flip) starts
+     life exactly on top of the clicked hand card and animates to the centred panel size while
+     it turns; .rc-panel inside is laid out once at full size and clipped, so the text never
+     reflows mid-flight. Driven by src/cards.js. -->
+<div class="rc-overlay" id="rc-overlay" role="dialog" aria-modal="true" hidden>
+  <div class="rc-scrim"></div>
+  <div class="rc-flip">
+    <div class="rc-face rc-front"><img alt=""></div>
+    <div class="rc-face rc-back panel">
+      <article class="rc-panel">
+        <header class="rc-panel-head panel-head">
+          <span class="panel-icons"><img class="panel-icon rc-icon" alt=""></span>
+          <div class="panel-head-text">
+            <span class="rc-kind panel-eyebrow"></span>
+            <h2></h2>
+            <p class="rc-sub panel-sub"></p>
+          </div>
+          <button class="rc-close panel-close" type="button" aria-label="Close and turn the card back over">&times;</button>
+        </header>
+        <div class="rc-panel-body panel-body"></div>
+        <footer class="rc-deck panel-foot"></footer>
+      </article>
+    </div>
+  </div>
+</div>
+
+<dialog id="modal" class="panel">
+  <div class="m-head panel-head" id="m-head">
+    <span class="panel-icons">
+      <img id="m-icon" class="panel-icon hex" alt="">
+      <img id="m-token" class="panel-token" alt="">
+    </span>
+    <div class="panel-head-text">
+      <span class="panel-eyebrow" id="m-eyebrow"></span>
+      <h2 id="m-title"></h2>
+      <p class="panel-sub" id="m-sub"></p>
+    </div>
+    <button class="m-close panel-close" id="m-close" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div class="m-body panel-body" id="m-body"></div>
+  <div class="m-nav panel-foot" id="m-nav"></div>
+</dialog>
+
+<!-- The photo viewer. Any run of images in prose is dealt out as a pile of prints
+     (.photo-stack); clicking one lays that pile out here as a collage, the neighbouring photos
+     showing past the edges of the screen. A <dialog> so it can sit above the tile modal, which
+     is one too — nothing but another dialog stacks above the browser's top layer. Filled and
+     driven by src/photos.js. -->
+<dialog id="photo-viewer" class="pv" aria-label="Photos">
+  <div class="pv-stage" id="pv-stage"></div>
+  <p class="pv-count" id="pv-count" aria-live="polite"></p>
+  <button class="pv-close panel-close" id="pv-close" type="button" aria-label="Close photos">&times;</button>
+</dialog>
+
+<div id="dice-announce" class="sr-only" role="status" aria-live="polite"></div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
