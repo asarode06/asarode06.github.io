@@ -115,8 +115,11 @@ export function renderBoard(worldEl, { onOpenTile, onDesertClick, onRobbed } = {
     }
   });
 
-  // Robber lands on a random filler tile from the same seeded roll.
+  // Robber lands on a random filler tile from the same seeded roll. `robberTile` follows him
+  // from there: Catan's rule is that a move has to *move* him, so the tile he's standing on is
+  // never a legal target and is left out of the arming below.
   const robberSpot = fillerEls[Math.floor(rng() * fillerEls.length)];
+  let robberTile = robberSpot;
   const robber = document.createElement('img');
   robber.className = 'robber';
   robber.src = '/art/pieces/robber.svg';
@@ -145,7 +148,8 @@ export function renderBoard(worldEl, { onOpenTile, onDesertClick, onRobbed } = {
   // Dropping the robber on a plain tile is how the player earns extra resource cards, so arming
   // takes a per-resource count of what's still in each deck: tiles whose deck is exhausted are
   // still legal robber spots (it's the robber, he goes where you put him) but say up front that
-  // there's nothing left to take, rather than paying out silence on the click.
+  // there's nothing left to take, rather than paying out silence on the click. The one tile that
+  // is never offered is the one he's standing on.
   // `onResolve` is how a Knight dev card learns that its robber move has been made — a 7 rolled
   // on the dice passes nothing and just lets onRobbed do the paying out.
   //
@@ -159,6 +163,7 @@ export function renderBoard(worldEl, { onOpenTile, onDesertClick, onRobbed } = {
     armed = true;
     if (onResolve) pendingResolvers.push(onResolve);
     fillerEls.forEach((f) => {
+      if (f === robberTile) return; // he's already here; robbing it again would be a free re-take
       const left = remaining[f.dataset.resource];
       const dry = left === 0;
       f.classList.add('armable');
@@ -178,8 +183,9 @@ export function renderBoard(worldEl, { onOpenTile, onDesertClick, onRobbed } = {
   }
   fillerEls.forEach((f) => {
     f.addEventListener('click', () => {
-      if (!armed) return;
+      if (!armed || f === robberTile) return;
       positionRobberOn(robber, f);
+      robberTile = f;
       disarmRobber();
       onRobbed?.(f.dataset.resource);
       // Drained rather than iterated: a resolver may arm the robber again (a knight drawn out of
@@ -187,7 +193,7 @@ export function renderBoard(worldEl, { onOpenTile, onDesertClick, onRobbed } = {
       pendingResolvers.splice(0).forEach((done) => done(f.dataset.resource));
     });
     f.addEventListener('pointerenter', () => {
-      if (!armed) return;
+      if (!armed || f === robberTile) return;
       positionRobberOn(ghostRobber, f);
       ghostRobber.hidden = false;
     });

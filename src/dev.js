@@ -228,7 +228,7 @@ export function createDevCards({
     knight(done) {
       knights += 1;
       getCamera?.()?.setHome(true);
-      cards.toast('Knight: move the robber onto any plain tile and take that resource’s next card.');
+      cards.toast('Knight: move the robber onto any other plain tile and take that resource’s next card.');
       board.armRobber(cards.remainingByResource(), () => {
         if (knights === LARGEST_ARMY_KNIGHTS && !largestArmy) {
           largestArmy = true;
@@ -299,7 +299,7 @@ export function createDevCards({
     const { deckBtn } = mount;
 
     const foot = {
-      knight: 'drop the robber on a plain tile',
+      knight: 'move the robber to another plain tile',
       'year-of-plenty': 'pick 2 resources',
       monopoly: 'name a resource',
       'road-building': 'place 2 roads',

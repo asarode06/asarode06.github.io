@@ -175,7 +175,7 @@ initHud({
     } else if (sum === 7) {
       board.armRobber(cards.remainingByResource());
       camera.setHome(true); // pan/zoom out so the whole map — and every tile the robber could land on — is visible
-      cards.toast('Rolled 7: drop the robber on any plain tile to take that resource’s next card.');
+      cards.toast('Rolled 7: move the robber onto any other plain tile to take that resource’s next card.');
     }
   },
 });
