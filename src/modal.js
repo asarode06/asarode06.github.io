@@ -18,8 +18,55 @@ import {
 // Every word rendered below is authored in content/*.md and compiled to HTML at build time — see
 // src/content.js. Nothing in this module writes prose; it only decides which pre-rendered block
 // goes in which slot.
-import { CONTENT, TIMELINE, PROJECTS, DESERT_LINES, TRADE } from './content.js';
+import { CONTENT, TIMELINE, PROJECTS, DESERT_LINES, TRADE, RESUME } from './content.js';
 import { hexCenter, nearestInDirection } from './geometry.js';
+
+// What the résumé sheet is actually painted at, kept in step with `--print-w` on .resume-sheet
+// in style.css. Same arrangement as SLIDE_SIZES in photos.js: whoever displays a photo owns the
+// hint the browser picks its rung off `srcset` with.
+const RESUME_SHEET_W = '128px';
+
+// The résumé, as text. An image of a Letter page needs to be painted about 900px wide before
+// 10pt type is comfortable, and a phone can't paint it wider than the screen — so the document is
+// authored again as words in content/resume.md and set here at the site's own reading size. The
+// PDF is still offered underneath, and the page image still sits there as a print, because the
+// file is what a recruiter actually files away.
+function resumeHtml() {
+  return RESUME.map(
+    (section) => `<section class="cv-section">
+      <h3 class="cv-heading">${esc(section.name)}</h3>
+      ${section.entries.map(resumeEntry).join('')}
+    </section>`
+  ).join('');
+}
+
+function resumeEntry(e) {
+  let html = '';
+  if (e.showTitle) {
+    // Two rows that each push a left half against a right half: employer/dates, then role/place.
+    // The right half is dropped entirely rather than left empty, so an entry with no location
+    // closes up instead of leaving a gap where one would have been.
+    html +=
+      `<div class="cv-line"><h4>${esc(e.title)}</h4>` +
+      (e.dates ? `<span class="cv-when">${esc(e.dates)}</span>` : '') +
+      `</div>`;
+    const left = e.subtitle || (e.stack.length ? e.stack.join(' · ') : '');
+    if (left || e.location) {
+      html +=
+        `<div class="cv-line cv-sub">` +
+        (left ? `<span${e.subtitle ? '' : ' class="cv-stack"'}>${esc(left)}</span>` : '<span></span>') +
+        (e.location ? `<span class="cv-where">${esc(e.location)}</span>` : '') +
+        `</div>`;
+    }
+  }
+  if (e.rows.length) {
+    html += `<dl class="cv-rows">${e.rows
+      .map((r) => `<dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd>`)
+      .join('')}</dl>`;
+  }
+  html += e.bullets; // already rendered markdown — the résumé's own bullet list
+  return `<div class="cv-entry">${html}</div>`;
+}
 
 function esc(s) {
   const d = document.createElement('div');
@@ -201,16 +248,23 @@ export function initModal({
     });
 
     // The tile's own prose, straight from content/tiles.md. Three tiles then get machinery
-    // appended that can't sensibly be written by hand: the résumé's embedded PDF, the Skills
+    // appended that can't sensibly be written by hand: the résumé's download line, the Skills
     // groups (which need their resource colours), and the Projects grid (whose cards are the
     // entries in content/projects.md).
     let html = data.body;
 
+    // The résumé used to be an <embed>, i.e. the browser's own PDF plugin: its toolbar and grey
+    // mat in the middle of a hand-drawn board, a US-Letter page squeezed into a 320px window,
+    // and nothing at all on iOS, which won't render a PDF inline. It's a page — so it's a print,
+    // authored as an ordinary markdown image in tiles.md and dealt out as a one-print pile like
+    // every other photo. Two things make it read as a document rather than a snapshot: the pile
+    // is tagged so CSS lays it out as a full uncropped sheet, and the PDF itself is offered
+    // underneath, since a print is for looking at and the file is what a recruiter actually wants.
     if (id === 'resume') {
-      html =
-        `<embed class="resume-embed" src="${RESUME_URL}" type="application/pdf" aria-label="Résumé preview">` +
-        `<p class="embed-fallback">Preview not loading? <a href="${RESUME_URL}" target="_blank" rel="noopener">Open the PDF directly</a>.</p>` +
-        html;
+      html += resumeHtml();
+      html +=
+        `<p class="resume-get"><a href="${RESUME_URL}" target="_blank" rel="noopener" download>` +
+        `Download the PDF</a></p>`;
     }
 
     if (data.groups?.length) {
@@ -237,6 +291,31 @@ export function initModal({
     }
 
     bodyEl.innerHTML = html;
+
+    // Tagged after the fact rather than authored: plugins/content.js deals every run of images
+    // out as the same pile, and which pile is a résumé is this tile's business, not the parser's.
+    // `sizes` has to move with it — the build baked in the 150px a print is normally painted at,
+    // and a sheet is painted at whatever the rule below says, so leaving it would hand the
+    // browser a rung it has to upscale. See plugins/images.js.
+    if (id === 'resume') {
+      const sheet = bodyEl.querySelector('.photo-stack');
+      const get = bodyEl.querySelector('.resume-get');
+      if (sheet) {
+        sheet.classList.add('resume-sheet');
+        const img = sheet.querySelector('img');
+        if (img) img.sizes = RESUME_SHEET_W;
+      }
+      // The print and the download button are one thing — "and here's the file itself" — so they
+      // end up paired at the foot of the résumé rather than the print floating at the top where
+      // it's authored. Moved rather than re-authored: the pile has to be dealt by the content
+      // plugin to get its srcset, and only this tile knows where it wants it.
+      if (sheet && get) {
+        const file = document.createElement('div');
+        file.className = 'resume-file';
+        get.before(file);
+        file.append(sheet, get);
+      }
+    }
 
     bodyEl.querySelectorAll('[data-item]').forEach((b) => {
       b.addEventListener('click', () => openDetail(id, b.dataset.item));

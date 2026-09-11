@@ -95,6 +95,42 @@ export const TIMELINE = files('experience').map((e) => ({
   inDeck: e.card !== 'no',
 }));
 
+// -------------------------------------------------------------------- résumé
+// The résumé as text, grouped into its sections. It's the one collection here that exists
+// because of a *rendering* limit rather than an authoring one: the PDF is still the document,
+// but a Letter page has to be painted about 900px wide before 10pt type is comfortable to read,
+// and no surface on this site is that wide on a phone — so the words are authored again as
+// words. See the header of content/resume.md.
+//
+// Sections come out in the order they first appear in the file, so the running order is the
+// author's, not an ordering rule here.
+export const RESUME = (() => {
+  const sections = new Map();
+  for (const e of files('resume')) {
+    const name = e.section || 'Other';
+    if (!sections.has(name)) sections.set(name, []);
+    sections.get(name).push({
+      id: e.id,
+      title: e.title ?? '',
+      subtitle: e.subtitle ?? '',
+      dates: e.dates ?? '',
+      location: e.location ?? '',
+      stack: parseList(e.stack),
+      // `heading: no` is the skills block, which is rows and nothing else.
+      showTitle: e.heading !== 'no',
+      // `Label | one, two, three`, the same pipe convention the Skills tile's `groups:` uses.
+      rows: (Array.isArray(e.rows) ? e.rows : []).map((row) => {
+        const at = row.indexOf('|');
+        return at === -1
+          ? { label: '', value: row.trim() }
+          : { label: row.slice(0, at).trim(), value: row.slice(at + 1).trim() };
+      }),
+      bullets: e.html,
+    });
+  }
+  return [...sections].map(([name, entries]) => ({ name, entries }));
+})();
+
 // -------------------------------------------------------------------- tile modals
 const TILE_ENTRIES = new Map(files('tiles').map((e) => [e.tile ?? e.id, e]));
 

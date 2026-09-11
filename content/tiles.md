@@ -33,7 +33,9 @@
 
   Two tiles have machinery bolted on by the renderer, below whatever you write:
     projects   the grid of project cards (authored in `projects.md`)
-    resume     the embedded PDF, prepended above the body
+    resume     the résumé itself, set as text from `resume.md`, goes in under
+               whatever you write here — then the page image below and a PDF
+               download are paired off at the foot as "the file itself"
   And two are special cases:
     experience clicking it lifts the road chain instead of opening a modal, so
                only `title` here is ever used (for the prev/next footer labels)
@@ -54,12 +56,26 @@ subtitle: Georgia Institute of Technology · BS Computer Science, expected May 2
   Algorithms, Design & Analysis of Algorithms, Systems & Networks, Low-Level
   Programming, Object-Oriented Programming
 
+![Policy visualization of a solved MDP grid](/courses/AI/policy-visualization.png)
+![Fashion-MNIST samples labelled Dress and Sandal](/courses/AI/fashion-mnist.png)
+![Training and validation loss and accuracy over ten epochs](/courses/AI/training-curves.png)
+![CSVistool stepping through Dijkstra's on a weighted graph](/courses/DSA/csvistool-dijkstra.png)
+![A recursion tree solved with the Master Theorem](/courses/Design_Algs/1-recursion-tree.png)
+![A dynamic programming table filled in for longest common subsequence](/courses/Design_Algs/2-dp-table.png)
+![A weighted undirected graph](/courses/Design_Algs/3-weighted-graph.png)
+![Karp's tree of reductions from satisfiability](/courses/Design_Algs/4-np-reductions.png)
+![Average speedup across all tests: 4.08x](/courses/Systems_Networks/1_speedup.jpg)
+![The grader's comment on my datapath report](/courses/Systems_Networks/2_ta-comment.jpg)
+![My LC-5200 datapath in CircuitSim](/courses/Systems_Networks/3_lc5200-datapath.png)
+![The transport protocol retransmitting through simulated corruption](/courses/Systems_Networks/4_transport-protocol.jpg)
+![The LC-3 datapath I built in CircuitSim](/courses/LowLevel/lc3-datapath.png)
+![My assembly running in LC3Tools, printing an H made of Hs](/courses/LowLevel/lc3tools.png)
+![A JavaFX form for recording and sorting startup ideas](/courses/OOP/javafx-idea-form.png)
+
 +++
 tile: resume
 title: Resume
 subtitle: My resume with some highlights below
-links:
-  - Download resume (PDF) | /resume/Akash_Sarode.pdf
 +++
 
 - 3.91 GPA at Georgia Tech
@@ -67,6 +83,8 @@ links:
 - Expected graduation May 2028
 - AWS Certified Cloud Practitioner
 - published paper @ DCASE Conference
+
+![My resume, one page](/resume/Akash_Sarode.png)
 
 +++
 tile: experience
