@@ -83,6 +83,18 @@ title: About me
 subtitle: CS student at Georgia Tech. Interested in Cloud, AI, and FinTech!
 +++
 
+![In a suit at Hudson Yards, the Vessel behind me](/extras/suits.jpeg)
+![A game of Catan mid-swing](/extras/awesome.jpeg)
+![With Buzz on the field at a Georgia Tech game](/extras/111111.jpeg)
+![The Bits of Good team out on a rooftop](/experiences/BitsOfGood/team-rooftop.jpg)
+![Three of us in sunglasses with the price tags still on](/extras/tuff.jpeg)
+![John Toebes](/extras/cool.jpeg)
+![Making brownies with friends](/extras/team-baking.jpg)
+![An FTC robotics clip](/extras/Mewing_FTC.gif)
+![Lunch with the team at Applied Optoelectronics](/experiences/AOI/team-lunch.png)
+![Po Shen Loh](/extras/hello.jpeg)
+![Dinner with the lab after the DCASE workshop](/experiences/AudioSensing/dcase-dinner.jpg)
+
 CS student at Georgia Tech. Interested in Cloud, AI, and FinTech!
 ---
 
@@ -96,17 +108,6 @@ CS student at Georgia Tech. Interested in Cloud, AI, and FinTech!
 - **Big Nate Characters:** Gargantuan Nate, Daphne, Mr. Rosa, Chad, Mrs. Shipulski
 - **Indian Movies:** 3 Idiots, Ante Sundaraniki, Maharaja, Ala Vaikunthapurramuloo, Srimanthudu
 - **Favorite Git Commands:** blame, rebase -i, push --force-with-lease, stash, reflog
-
-![A game of Catan mid-swing](/extras/awesome.jpeg)
-![With Buzz on the field at a Georgia Tech game](/extras/111111.jpeg)
-![The Bits of Good team out on a rooftop](/experiences/BitsOfGood/team-rooftop.jpg)
-![Three of us in sunglasses with the price tags still on](/extras/tuff.jpeg)
-![John Toebes](/extras/cool.jpeg)
-![Making brownies with friends](/extras/team-baking.jpg)
-![An FTC robotics clip](/extras/Mewing_FTC.gif)
-![Lunch with the team at Applied Optoelectronics](/experiences/AOI/team-lunch.png)
-![Po Shen Loh](/extras/hello.jpeg)
-![Dinner with the lab after the DCASE workshop](/experiences/AudioSensing/dcase-dinner.jpg)
 
 +++
 tile: projects
