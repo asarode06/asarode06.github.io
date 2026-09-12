@@ -29,6 +29,22 @@
 const WIGGLE_WORLD = 140;
 const DEFAULT_MAX_SCALE = 2.5;
 
+// Wheel input, split the way every map app splits it: a mouse wheel zooms, a trackpad's
+// two-finger scroll pans, and a trackpad pinch (which browsers report as a ctrl-held wheel)
+// zooms continuously. A wheel event doesn't say which device sent it, so it's inferred. A
+// trackpad scrolls in two axes and in small pixel-precise steps; a wheel notch arrives as one
+// big jump, or in "line"/"page" delta mode, and never sideways. A fast trackpad fling ramps up
+// into notch-sized deltas partway through, so trackpad evidence is sticky for a moment and the
+// rest of that gesture keeps panning rather than flipping to zoom mid-flick.
+//
+// What a notch's delta actually *says* is thrown away: the OS scales it by the pointer's
+// scroll-speed setting and the mouse's own driver, so honouring it would make the zoom step a
+// property of the visitor's control panel. Only the direction is read, and every notch on every
+// mouse is worth exactly MOUSE_ZOOM_STEP.
+const MOUSE_ZOOM_STEP = 1.08;
+const WHEEL_NOTCH_MIN = 30; // px of deltaY below which a pixel-mode event reads as a trackpad
+const TRACKPAD_MEMORY_MS = 1200;
+
 function clamp1D(v, lo, hi) {
   return Math.min(Math.max(v, lo), hi);
 }
@@ -213,15 +229,31 @@ export function createCamera({ viewportEl, worldEl, worldWidth, worldHeight, isM
   let lastX = 0;
   let lastY = 0;
 
+  let lastTrackpadAt = -Infinity;
+
+  function isTrackpadWheel(e) {
+    if (e.deltaMode !== 0) return false; // line/page deltas only ever come from a real wheel
+    if (e.deltaX !== 0 || Math.abs(e.deltaY) < WHEEL_NOTCH_MIN) {
+      lastTrackpadAt = e.timeStamp;
+      return true;
+    }
+    return e.timeStamp - lastTrackpadAt < TRACKPAD_MEMORY_MS;
+  }
+
   function onWheel(e) {
     e.preventDefault();
-    const scaleFactor = e.deltaMode === 1 ? 16 : 1; // "line" delta mode → approximate px
     if (e.ctrlKey) {
-      const factor = Math.exp(-e.deltaY * 0.012);
-      zoomAt(e.clientX, e.clientY, factor);
-    } else {
-      panBy(-e.deltaX * scaleFactor, -e.deltaY * scaleFactor);
+      // Pinch: genuinely continuous, so it keeps following the delta.
+      zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.012));
+      return;
     }
+    if (isTrackpadWheel(e)) {
+      panBy(-e.deltaX, -e.deltaY);
+      return;
+    }
+    const dir = Math.sign(e.deltaY);
+    if (!dir) return;
+    zoomAt(e.clientX, e.clientY, dir > 0 ? 1 / MOUSE_ZOOM_STEP : MOUSE_ZOOM_STEP);
   }
 
   function onPointerDown(e) {
