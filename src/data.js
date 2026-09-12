@@ -60,10 +60,12 @@ export const LINKEDIN_URL = 'https://linkedin.com/in/akashsarode/';
 export const ARXIV_URL = 'https://arxiv.org/abs/2509.19295';
 export const RESUME_URL = '/resume/Akash_Sarode.pdf';
 
-// Formspree free-tier endpoint. Sign up at https://formspree.io, create a form, and swap the
-// id below — until then the Trade modal shows a "not configured yet" fallback and still lists
-// the plain contact links.
-export const FORMSPREE_ENDPOINT = 'https://formspree.io/f/REPLACE_ME';
+// Where the Trade modal's contact form posts. GitHub Pages can't take a form submission itself,
+// so this is a Cloudflare Worker deployed out of `worker/` that relays the message into a chat
+// channel — see worker/README.md for how to stand it up and what to paste here. Until the URL
+// below is real the modal shows a "not wired up yet" fallback and still lists the plain contact
+// links, so the tile is never a dead end.
+export const CONTACT_ENDPOINT = 'https://catan-portfolio-contact.asarode.workers.dev';
 
 // -------------------------------------------------------------------- board tiles
 // Deviates from SPEC.md's token table on purpose: the spec repeats 6 and 8 (Experience/Projects

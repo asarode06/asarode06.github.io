@@ -13,7 +13,8 @@ import {
   RESUME_URL,
   TILES,
   CONTACT_LINKS,
-  FORMSPREE_ENDPOINT,
+  CONTACT_EMAIL,
+  CONTACT_ENDPOINT,
 } from './data.js';
 // Every word rendered below is authored in content/*.md and compiled to HTML at build time — see
 // src/content.js. Nothing in this module writes prose; it only decides which pre-rendered block
@@ -435,6 +436,88 @@ export function initModal({
   }
 
   // ---------------------------------------------------------------- trade / contact
+  // The form posts to the Worker in `worker/` rather than to the page it came from, because
+  // GitHub Pages has no server to post to. Until that endpoint is real the modal falls back to
+  // the plain links, so the Trade tile is never a dead end.
+  const contactConfigured = () => !CONTACT_ENDPOINT.includes('REPLACE_ME');
+
+  // Submitting is deliberately not a page navigation. Everything else on this site keeps the
+  // visitor inside one continuous board, and handing them off to a third party's thank-you page
+  // would be the one click that throws them out of it — so the send happens in place and the
+  // form is replaced by its own confirmation.
+  function contactFormHtml() {
+    return `
+      <form class="contact-form" novalidate>
+        <label>Name <input type="text" name="name" maxlength="120" autocomplete="name" required></label>
+        <label>Email <input type="email" name="email" maxlength="200" autocomplete="email" required></label>
+        <label>Message <textarea name="message" rows="4" maxlength="4000" required></textarea></label>
+        <div class="hp" aria-hidden="true">
+          <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div class="contact-actions">
+          <button type="submit">Send</button>
+          <span class="contact-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>`;
+  }
+
+  function wireContactForm() {
+    const form = bodyEl.querySelector('.contact-form');
+    if (!form) return;
+    // When the form was put on screen. The Worker drops anything that comes back too fast to
+    // have been typed, which is the half of the spam defence that a bot can't see.
+    const shownAt = Date.now();
+    const button = form.querySelector('button[type="submit"]');
+    const status = form.querySelector('.contact-status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (button.disabled) return;
+
+      const data = Object.fromEntries(new FormData(form));
+      if (!data.name?.trim() || !data.email?.trim() || !data.message?.trim()) {
+        status.className = 'contact-status bad';
+        status.textContent = 'Every field, please.';
+        return;
+      }
+
+      button.disabled = true;
+      status.className = 'contact-status';
+      status.textContent = 'Sending…';
+
+      try {
+        const res = await fetch(CONTACT_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...data, t: shownAt }),
+        });
+        const out = await res.json().catch(() => ({}));
+        if (res.ok && out.ok) {
+          form.replaceWith(contactSentEl());
+          return;
+        }
+        // A 4xx is something the visitor can fix and the Worker says what, so pass that through
+        // as written. Anything else is the endpoint's problem, not theirs.
+        const fixable = res.status >= 400 && res.status < 500 && out.error;
+        throw Object.assign(new Error(out.error || ''), { fixable });
+      } catch (err) {
+        button.disabled = false;
+        status.className = 'contact-status bad';
+        if (err.fixable) status.textContent = err.message;
+        // Failing that, the way out is the one the panel already lists underneath.
+        else status.innerHTML = `That didn't go through. <a href="mailto:${CONTACT_EMAIL}">Email me</a> instead?`;
+      }
+    });
+  }
+
+  function contactSentEl() {
+    const sent = document.createElement('p');
+    sent.className = 'contact-sent';
+    sent.setAttribute('role', 'status');
+    sent.textContent = "Trade accepted. I'll get back to you.";
+    return sent;
+  }
+
   function openContact() {
     leaveExperience();
     leaveCards();
@@ -448,20 +531,11 @@ export function initModal({
       sub: TRADE.subtitle,
       accent: 'var(--player)',
     });
-    const configured = !FORMSPREE_ENDPOINT.includes('REPLACE_ME');
     bodyEl.innerHTML = `
       ${TRADE.body}
-      ${
-        configured
-          ? `<form class="contact-form" action="${FORMSPREE_ENDPOINT}" method="POST">
-              <label>Name <input type="text" name="name" required></label>
-              <label>Email <input type="email" name="email" required></label>
-              <label>Message <textarea name="message" rows="4" required></textarea></label>
-              <button type="submit">Send</button>
-            </form>`
-          : `<p class="embed-fallback">The contact form isn't wired up yet, so email me directly instead.</p>`
-      }
+      ${contactConfigured() ? contactFormHtml() : `<p class="embed-fallback">The contact form isn't wired up yet, so email me directly instead.</p>`}
       <p class="links">${CONTACT_LINKS.map((l) => `<a href="${l.href}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join(' · ')}</p>`;
+    wireContactForm();
     navEl.innerHTML = '';
     setHash('trade');
     present(view);

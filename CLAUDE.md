@@ -118,6 +118,14 @@ in the repo's Settings → Pages, set "Source" to "GitHub Actions".
 - `src/mobile.js` — the <780px fallback: normal scrolling page, 19 tiles grouped by resource.
   No dice and no robber down here, so `main.js` deals the whole deck face-up instead of gating
   cards behind a mechanic that doesn't exist at this width.
+- `worker/` — the contact form's backend, and the only thing in the repo that isn't part of the
+  site. GitHub Pages serves static files, so the Trade modal's form has nowhere on this origin to
+  post to; this is a Cloudflare Worker that takes the POST, validates it, and relays it into a
+  Discord or Slack channel (it tells the two apart by the webhook URL, so switching is a secret
+  change and not a code change). It deploys separately with `wrangler` and is untouched by the
+  Pages workflow — `worker/README.md` is the full procedure. The site reaches it through
+  `CONTACT_ENDPOINT` in `data.js`, and `modal.js` submits with `fetch` rather than a form
+  navigation so the visitor is never thrown off the board onto someone else's thank-you page.
 
 ## One panel, three entrances
 
@@ -207,8 +215,9 @@ it.
 
 - `public/resume/Akash_Sarode.pdf` doesn't exist yet — drop the real file there (the Resume tile,
   the fixed corner link, and one of the ports all point to it).
-- `FORMSPREE_ENDPOINT` in `src/data.js` is a placeholder — sign up at formspree.io and swap in the
-  real form id, or the Trade modal just shows a "not configured yet" fallback with plain links.
+- `CONTACT_ENDPOINT` in `src/data.js` is a placeholder — deploy the Worker in `worker/` and paste
+  its URL in (`worker/README.md` is the whole procedure, about ten minutes), or the Trade modal
+  just shows a "not wired up yet" fallback with plain links.
 - Placeholder art in `public/art/pieces/`, `tokens/` and `cards/` is meant to be replaced with
   real scanned drawings — see `ART.md` for the swap plan. The tiles are *not* placeholders: they
   were redrawn as flat colour plus a quiet repeating texture, and `ART.md`'s "Tile design

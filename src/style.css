@@ -1329,7 +1329,7 @@ dialog#modal.closing::backdrop { animation: panel-fade .3s ease reverse forwards
 }
 .card-grid-item p { margin: 0; font-family: var(--panel-prose-font); font-size: .78rem; opacity: .85; }
 
-/* The stand-in the Trade form falls back to while FORMSPREE_ENDPOINT is still a placeholder. */
+/* The stand-in the Trade form falls back to while CONTACT_ENDPOINT is still a placeholder. */
 .embed-fallback { font-size: .8rem; opacity: .75; }
 
 .contact-form { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
@@ -1338,9 +1338,32 @@ dialog#modal.closing::backdrop { animation: panel-fade .3s ease reverse forwards
   font: inherit; font-family: var(--panel-prose-font);
   padding: 6px 8px; border: 1.5px solid var(--ink); border-radius: 5px;
 }
+.contact-form textarea { resize: vertical; }
 .contact-form button {
-  align-self: flex-start; font: inherit; cursor: pointer;
+  font: inherit; cursor: pointer;
   background: var(--player); color: var(--paper); border: 0; border-radius: 6px; padding: 7px 16px;
+}
+.contact-form button:disabled { cursor: default; opacity: .6; }
+
+/* The button sits at the left with the send status beside it, so the line the visitor is waiting
+   on appears next to the thing they just pressed rather than somewhere else in the panel. */
+.contact-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.contact-status { font-size: .78rem; opacity: .8; }
+.contact-status.bad { opacity: 1; color: var(--player); }
+.contact-status a { color: inherit; }
+
+/* What the form is replaced by once the message is away. */
+.contact-sent {
+  margin: 12px 0; padding: 10px 12px;
+  border: 1.5px dashed var(--ink); border-radius: 7px;
+  font-family: var(--panel-title-font); font-size: 1.05rem;
+}
+
+/* The honeypot. Hidden from people without display:none, which a form-stuffer would read as a
+   field not to touch — anything that fills this in is dropped by the Worker. */
+.contact-form .hp {
+  position: absolute; left: -9999px; width: 1px; height: 1px;
+  overflow: hidden; opacity: 0; pointer-events: none;
 }
 
 /* The prev/next pair is the one footer that needs its two ends pushed apart, which is already

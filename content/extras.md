@@ -36,7 +36,7 @@
                      Keys: title, subtitle.
                      Body: shown above the form. The form itself and the list of
                      contact links are wired up in src/data.js, since those are
-                     URLs and a Formspree id rather than writing.
+                     URLs rather than writing.
 
   Bodies are markdown. Add an award by copying a block.
 ================================================================================

@@ -1,0 +1,12 @@
+name = "catan-portfolio-contact"
+main = "index.js"
+compatibility_date = "2026-09-01"
+
+# Who is allowed to POST to this Worker. The deployed site first, then the Vite dev server so the
+# form is testable locally. Add a custom domain here too if the site ever gets one — an origin
+# that isn't on this list gets a 403 before the body is even read.
+[vars]
+ALLOWED_ORIGINS = "https://asarode06.github.io,http://localhost:5173,http://127.0.0.1:5173"
+
+# WEBHOOK_URL is a secret, not a var — it is set with `wrangler secret put WEBHOOK_URL` and never
+# appears in this file. See README.md.
