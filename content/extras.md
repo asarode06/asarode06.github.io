@@ -121,5 +121,4 @@ title: Trade
 subtitle: Send a message, or just reach out directly.
 +++
 
-Ports are open on every coast. Anything worth building usually starts with
-somebody offering two sheep for a brick.
+Hey, wanna trade with me? I can give you 1 ore for 4 brick! I know the bank is offering you the same thing but come onnnnn. My ore is shinier trust.
