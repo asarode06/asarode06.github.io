@@ -25,7 +25,7 @@ if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out
 
 function Say([string]$msg) {
   $line = ('{0}  {1}' -f (Get-Date -Format 's'), $msg)
-  Add-Content -Path $log -Value $line -Encoding utf8
+  Add-Content -Path $log -Value $line -Encoding ascii
   Write-Output $line
 }
 
@@ -33,7 +33,7 @@ function Trim-Log {
   if (Test-Path $log) {
     $lines = Get-Content $log
     if ($lines.Count -gt 500) {
-      Set-Content -Path $log -Value ($lines | Select-Object -Last 300) -Encoding utf8
+      Set-Content -Path $log -Value ($lines | Select-Object -Last 300) -Encoding ascii
     }
   }
 }
