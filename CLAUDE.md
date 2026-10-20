@@ -126,6 +126,17 @@ in the repo's Settings → Pages, set "Source" to "GitHub Actions".
   Pages workflow — `worker/README.md` is the full procedure. The site reaches it through
   `CONTACT_ENDPOINT` in `data.js`, and `modal.js` submits with `fetch` rather than a form
   navigation so the visitor is never thrown off the board onto someone else's thank-you page.
+- `scripts/` — Windows-only upkeep, nothing the site imports. `sync-resume.ps1` is how
+  `public/resume/Akash_Sarode.pdf` gets there: the resume is authored outside this repo (the
+  `-Source` default points at it), and this hash-compares the two, then copies, commits that one
+  path and pushes, so a new export reaches the live site without a manual step. It is a copy and
+  deliberately not a symlink — the PDF is tracked and Pages builds on a Linux runner, where a
+  link to a Windows path would check out dangling and 404 the resume. `watch-resume.ps1` polls
+  the source once a minute and `install-resume-sync.ps1` drops a hidden launcher for it in the
+  Startup folder (Task Scheduler wants admin; this doesn't). `npm run resume:sync` is the
+  one-shot. It logs to `%LOCALAPPDATA%\catan-portfolio\resume-sync.log`, and it stays out of the
+  way of anything else in flight: wrong branch, a merge in progress or a failed push leave a log
+  line instead of a guess.
 
 ## One panel, three entrances
 
@@ -213,8 +224,10 @@ it.
 
 ## Known follow-ups
 
-- `public/resume/Akash_Sarode.pdf` doesn't exist yet — drop the real file there (the Resume tile,
-  the fixed corner link, and one of the ports all point to it).
+- The resume PDF is in place and syncs itself — see `scripts/` above. The path it syncs *from* is
+  a default in `sync-resume.ps1`, so moving the authored resume means editing that one line (or
+  passing `-Source`). The Resume tile, the fixed corner link and one of the ports all point at
+  the copy in `public/resume/`.
 - `CONTACT_ENDPOINT` in `src/data.js` is a placeholder — deploy the Worker in `worker/` and paste
   its URL in (`worker/README.md` is the whole procedure, about ten minutes), or the Trade modal
   just shows a "not wired up yet" fallback with plain links.
